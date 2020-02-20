@@ -1,0 +1,32 @@
+export interface AdvancedTeamStatsParameters {
+  MeasureType: string;
+  PerMode: string;
+  PlusMinus: string;
+  PaceAdjust: string;
+  Rank: string;
+  LeagueID: string;
+  Season: string;
+  SeasonType: string;
+  PORound: number;
+  Outcome: string;
+  Location: string;
+  Month: number;
+  SeasonSegment: string;
+  DateFrom: string;
+  DateTo: string;
+  OpponentTeamID: string;
+  VsConference: string;
+  VsDivision: string;
+  TeamID: string;
+  Conference: string;
+  Division: string;
+  GameSegment: string;
+  Period: string;
+  ShotClockRange: string;
+  LastNGames: string;
+  GameScope: string;
+  PlayerExperience: string;
+  PlayerPosition: string;
+  StarterBench: string;
+  TwoWay: string;
+}
