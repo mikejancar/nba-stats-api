@@ -42,13 +42,14 @@ export class TeamsService {
       .catch(error => console.log(error));
   }
 
-  getRangeOfAdvancedTeamStats(fromDate: string, upToDate: string): any {
+  async getRangeOfAdvancedTeamStats(fromDate: string, upToDate: string): Promise<any> {
     try {
       let fromNumber = parseInt(fromDate);
       const toNumber = parseInt(upToDate);
 
       for (fromNumber; fromNumber <= toNumber; fromNumber++) {
         this.getAdvancedTeamStats(fromNumber.toString());
+        await new Promise(r => setTimeout(r, 1000))
       }
       return `Successfully retrieved advanced team stats from ${fromDate} to ${upToDate}`;
     } catch (error) {
