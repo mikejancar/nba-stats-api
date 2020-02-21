@@ -1,4 +1,4 @@
-import { Controller, Get, Param } from '@nestjs/common';
+import { Controller, Get, Param, Query } from '@nestjs/common';
 import { Team } from 'src/models/team.interface';
 
 import { TeamsService } from './teams.service';
@@ -13,7 +13,10 @@ export class TeamsController {
   }
 
   @Get('advancedStats/:upToDate')
-  getTeamSplits(@Param('upToDate') upToDate): any {
+  getTeamSplits(@Param('upToDate') upToDate, @Query('fromDate') fromDate?): any {
+    if (fromDate) {
+      return this.teamsService.getRangeOfAdvancedTeamStats(fromDate, upToDate);
+    }
     return this.teamsService.getAdvancedTeamStats(upToDate);
   }
 }
