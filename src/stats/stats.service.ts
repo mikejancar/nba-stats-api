@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import fs from 'fs';
 
+import { Constants } from '../app.constants';
+import { FormattingService } from '../formatting/formatting.service';
 import { AdvancedTeamStatsColumns } from '../models/advanced-team-stats-columns.enum';
 import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-response';
 import { BoxScore } from '../models/box-score';
@@ -10,16 +12,16 @@ import { BoxScoreTeam } from '../models/box-score-team';
 
 @Injectable()
 export class StatsService {
-  private readonly dataDirectory = 'C:\\Users\\Mikej\\OneDrive\\Betting\\NBA';
+  constructor(private formattingService: FormattingService) { }
 
   getEnhancedBoxScores(datePlayed: string): BoxScore[] {
-    const dateFormatted = `${datePlayed.substring(4, 6)}-${datePlayed.substring(6)}-${datePlayed.substring(0, 4)}`;
-    const boxScoreFilePath = `${this.dataDirectory}\\box-scores-${dateFormatted}.json`
+    const dateFormatted = this.formattingService.formatDateForFileName(datePlayed);
+    const boxScoreFilePath = `${Constants.dataDirectory}\\box-scores-${dateFormatted}.json`
     const boxScoreData: BoxScoreResponse = JSON.parse(fs.readFileSync(boxScoreFilePath).toString());
 
     const boxScores: BoxScore[] = [];
 
-    for (let i = 0; i < 4; i += 2) {
+    for (let i = 0; i < boxScoreData.resultSets[0].rowSet.length; i += 2) {
       const rowOne: any[] = boxScoreData.resultSets[0].rowSet[i];
       const rowTwo: any[] = boxScoreData.resultSets[0].rowSet[i + 1];
 
@@ -48,8 +50,7 @@ export class StatsService {
   }
 
   enhanceBoxScore(boxScore: BoxScore): void {
-    const dateFormatted = `${boxScore.datePlayed.substring(4, 6)}-${boxScore.datePlayed.substring(6)}-${boxScore.datePlayed.substring(0, 4)}`
-    const filePath = `${this.dataDirectory}\\advanced-team-stats-${dateFormatted}.json`;
+    const filePath = `${Constants.dataDirectory}\\advanced-team-stats-${boxScore.datePlayed}.json`;
     const advancedStats: AdvancedTeamsStatsResponse = JSON.parse(fs.readFileSync(filePath).toString());
     const rowSet = advancedStats.resultSets[0].rowSet;
 

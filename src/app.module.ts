@@ -7,10 +7,11 @@ import { StatsController } from './stats/stats.controller';
 import { StatsService } from './stats/stats.service';
 import { TeamsController } from './teams/teams.controller';
 import { TeamsService } from './teams/teams.service';
+import { FormattingService } from './formatting/formatting.service';
 
 @Module({
   imports: [HttpModule],
   controllers: [AppController, TeamsController, StatsController, BoxScoresController],
-  providers: [TeamsService, StatsService, BoxScoresService],
+  providers: [TeamsService, StatsService, BoxScoresService, FormattingService],
 })
 export class AppModule { }

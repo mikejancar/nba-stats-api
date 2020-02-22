@@ -3,25 +3,26 @@ import fs from 'fs';
 import fetch from 'node-fetch';
 
 import { Constants } from '../app.constants';
+import { FormattingService } from '../formatting/formatting.service';
 import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-response';
 import { Team } from '../models/team.interface';
 
 @Injectable()
 export class TeamsService {
+  constructor(private formattingService: FormattingService) { }
 
   getTeams(): Team[] {
-    return JSON.parse(fs.readFileSync('C:\\Dev\\nba-stats-api\\dist\\assets\\data\\teams.json', 'utf-8'));
+    return JSON.parse(fs.readFileSync(`${Constants.dataDirectory}\\teams.json`, 'utf-8'));
   }
 
   getAdvancedTeamStats(upToDate: string): any {
-    const dateFormatted = `${upToDate.substring(4, 6)}/${upToDate.substring(6)}/${upToDate.substring(0, 4)}`;
+    const dateFormatted = this.formattingService.formatDateForStatsCall(upToDate);
     const url = `https://stats.nba.com/stats/leaguedashteamstats?Conference=&DateFrom=10/22/2019&DateTo=${dateFormatted}&Division=&GameScope=&GameSegment=&LastNGames=0&LeagueID=00&Location=&MeasureType=Advanced&Month=0&OpponentTeamID=0&Outcome=&PORound=0&PaceAdjust=N&PerMode=PerGame&Period=0&PlayerExperience=&PlayerPosition=&PlusMinus=N&Rank=N&Season=2019-20&SeasonSegment=&SeasonType=Regular+Season&ShotClockRange=&StarterBench=&TeamID=0&TwoWay=0&VsConference=&VsDivision=`;
-    const fileStoragePath = 'C:\\Users\\Mikej\\OneDrive\\Betting\\NBA';
 
     return fetch(url, { method: 'GET', headers: Constants.standardHeaders })
       .then(rawResponse => rawResponse.json())
       .then((response: AdvancedTeamsStatsResponse) => {
-        fs.writeFileSync(`${fileStoragePath}\\advanced-team-stats-${response.parameters.DateTo.replace(/\//gi, '-')}.json`, JSON.stringify(response));
+        fs.writeFileSync(`${Constants.dataDirectory}\\advanced-team-stats-${this.formattingService.formatDateForFileName(upToDate)}.json`, JSON.stringify(response));
         console.log(`Successfully retrieved advanced team stats from ${response.parameters.DateFrom} to ${response.parameters.DateTo}`);
         return response;
       })

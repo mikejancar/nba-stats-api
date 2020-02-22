@@ -1,4 +1,5 @@
 export class Constants {
+  static dataDirectory = 'C:\\Users\\Mikej\\OneDrive\\Betting\\NBA';
   static standardHeaders = {
     'Host': 'stats.nba.com',
     'Connection': 'keep-alive',

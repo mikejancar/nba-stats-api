@@ -3,19 +3,21 @@ import fs from 'fs';
 import fetch from 'node-fetch';
 
 import { Constants } from '../app.constants';
+import { FormattingService } from '../formatting/formatting.service';
 import { BoxScoreResponse } from '../models/box-score-response';
 
 @Injectable()
 export class BoxScoresService {
+  constructor(private formattingService: FormattingService) { }
+
   getBoxScoresOn(datePlayed: string): any {
-    const dateFormatted = `${datePlayed.substring(4, 6)}/${datePlayed.substring(6)}/${datePlayed.substring(0, 4)}`;
+    const dateFormatted = this.formattingService.formatDateForStatsCall(datePlayed);
     const url = `https://stats.nba.com/stats/leaguegamelog?Counter=1000&DateFrom=${dateFormatted}&DateTo=${dateFormatted}&Direction=DESC&LeagueID=00&PlayerOrTeam=T&Season=2019-20&SeasonType=Regular+Season&Sorter=DATE`;
-    const fileStoragePath = 'C:\\Users\\Mikej\\OneDrive\\Betting\\NBA';
 
     return fetch(url, { method: 'GET', headers: Constants.standardHeaders })
       .then(rawResponse => rawResponse.json())
       .then((response: BoxScoreResponse) => {
-        fs.writeFileSync(`${fileStoragePath}\\box-scores-${response.parameters.DateTo.replace(/\//gi, '-')}.json`, JSON.stringify(response));
+        fs.writeFileSync(`${Constants.dataDirectory}\\box-scores-${this.formattingService.formatDateForFileName(datePlayed)}.json`, JSON.stringify(response));
         console.log(`Successfully retrieved box scores from ${response.parameters.DateFrom}`);
         return response;
       })
