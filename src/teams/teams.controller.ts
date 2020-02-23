@@ -1,5 +1,5 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { Team } from 'src/models/team.interface';
+import { Team } from 'src/models/team';
 
 import { TeamsService } from './teams.service';
 

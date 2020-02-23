@@ -5,7 +5,7 @@ import fetch from 'node-fetch';
 import { Constants } from '../app.constants';
 import { FormattingService } from '../formatting/formatting.service';
 import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-response';
-import { Team } from '../models/team.interface';
+import { Team } from '../models/team';
 
 @Injectable()
 export class TeamsService {

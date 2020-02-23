@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { addDays, format, parseISO } from 'date-fns';
 import fs from 'fs';
 
 import { Constants } from '../app.constants';
@@ -8,11 +9,42 @@ import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-respon
 import { BoxScore } from '../models/box-score';
 import { BoxScoreColumns } from '../models/box-score-columns.enum';
 import { BoxScoreResponse } from '../models/box-score-response';
+import { BoxScoreSummary } from '../models/box-score-summary';
 import { BoxScoreTeam } from '../models/box-score-team';
 
 @Injectable()
 export class StatsService {
   constructor(private formattingService: FormattingService) { }
+
+  buildBoxScoreSummary(endDate: string, daysOfHistory: number): BoxScoreSummary {
+    const lastDate = parseISO(endDate);
+    let firstDate = addDays(lastDate, -daysOfHistory);
+
+    const boxScoreSummary: BoxScoreSummary = {
+      fromDate: firstDate,
+      toDate: lastDate,
+      boxScores: []
+    };
+
+    while (firstDate <= lastDate) {
+      const dateFormatted = format(firstDate, 'yyyyMMdd');
+      boxScoreSummary.boxScores.push(...this.getEnhancedBoxScores(dateFormatted));
+      firstDate = addDays(firstDate, 1);
+    }
+
+    this.summarizeWinningCharacteristics(boxScoreSummary);
+    return boxScoreSummary;
+  }
+
+  summarizeWinningCharacteristics(boxScoreSummary: BoxScoreSummary): void {
+    const totalBoxScores = boxScoreSummary.boxScores.length;
+    boxScoreSummary.winningCharacteristics = {
+      wasHomeTeam: boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.wasHomeTeam).length / totalBoxScores,
+      moreOffensivelyEfficient: boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.moreOffensivelyEfficient).length / totalBoxScores,
+      moreDefensivelyEfficient: boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.moreDefensivelyEfficient).length / totalBoxScores,
+      hadHigherWinningPercentage: boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.hadHigherWinningPercentage).length / totalBoxScores
+    };
+  }
 
   getEnhancedBoxScores(datePlayed: string): BoxScore[] {
     const dateFormatted = this.formattingService.formatDateForFileName(datePlayed);
@@ -29,11 +61,12 @@ export class StatsService {
       const teamTwo: BoxScoreTeam = this.createTeamFromBoxScore(rowTwo);
 
       const boxScore: BoxScore = {
-        homeTeam: rowOne[BoxScoreColumns.MATCHUP].includes('@') ? teamOne : teamTwo,
-        awayTeam: rowOne[BoxScoreColumns.MATCHUP].includes('@') ? teamTwo : teamOne,
+        homeTeam: rowOne[BoxScoreColumns.MATCHUP].includes('@') ? teamTwo : teamOne,
+        awayTeam: rowOne[BoxScoreColumns.MATCHUP].includes('@') ? teamOne : teamTwo,
         datePlayed: rowOne[BoxScoreColumns.GAME_DATE]
       };
       this.enhanceBoxScore(boxScore);
+      this.determineWinningCharacteristics(boxScore);
       boxScores.push(boxScore);
     }
     return boxScores;
@@ -54,11 +87,11 @@ export class StatsService {
     const advancedStats: AdvancedTeamsStatsResponse = JSON.parse(fs.readFileSync(filePath).toString());
     const rowSet = advancedStats.resultSets[0].rowSet;
 
-    this.loadEfficiencyStats(boxScore.homeTeam, rowSet);
-    this.loadEfficiencyStats(boxScore.awayTeam, rowSet);
+    this.loadAdvancedStats(boxScore.homeTeam, rowSet);
+    this.loadAdvancedStats(boxScore.awayTeam, rowSet);
   }
 
-  loadEfficiencyStats(team: BoxScoreTeam, rowSet: any[][]): void {
+  loadAdvancedStats(team: BoxScoreTeam, rowSet: any[][]): void {
     const teamData: any[] = rowSet.find((row: any[]) => row[AdvancedTeamStatsColumns.TEAM_ID] === team.teamId);
     if (!teamData) {
       const errorMessage = `Failed to find an advanced team stat record for the ${team.teamName}`;
@@ -66,9 +99,22 @@ export class StatsService {
       throw new Error(errorMessage);
     }
 
-    team.offensiveEfficieny = teamData[AdvancedTeamStatsColumns.OFF_RATING];
+    team.winningPercentage = teamData[AdvancedTeamStatsColumns.W_PCT];
+    team.offensiveEfficiency = teamData[AdvancedTeamStatsColumns.OFF_RATING];
     team.offensiveRank = teamData[AdvancedTeamStatsColumns.OFF_RATING_RANK];
     team.defensiveEfficiency = teamData[AdvancedTeamStatsColumns.DEF_RATING];
     team.defensiveRank = teamData[AdvancedTeamStatsColumns.DEF_RATING_RANK];
+  }
+
+  determineWinningCharacteristics(boxScore: BoxScore): void {
+    const winningTeam = boxScore.homeTeam.wonGame ? boxScore.homeTeam : boxScore.awayTeam;
+    const losingTeam = boxScore.homeTeam.wonGame ? boxScore.awayTeam : boxScore.homeTeam;
+
+    boxScore.winningCharacteristics = {
+      wasHomeTeam: boxScore.homeTeam.wonGame,
+      moreOffensivelyEfficient: winningTeam.offensiveEfficiency > losingTeam.offensiveEfficiency,
+      moreDefensivelyEfficient: winningTeam.defensiveEfficiency < losingTeam.defensiveEfficiency,
+      hadHigherWinningPercentage: winningTeam.winningPercentage > losingTeam.winningPercentage
+    };
   }
 }

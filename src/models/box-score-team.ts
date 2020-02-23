@@ -4,7 +4,8 @@ export interface BoxScoreTeam {
   teamName: string;
   pointsScored: number;
   wonGame: boolean;
-  offensiveEfficieny?: number;
+  winningPercentage?: number;
+  offensiveEfficiency?: number;
   offensiveRank?: number;
   defensiveEfficiency?: number;
   defensiveRank?: number;
