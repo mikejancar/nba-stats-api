@@ -113,8 +113,11 @@ export class StatsService {
     boxScore.winningCharacteristics = {
       wasHomeTeam: boxScore.homeTeam.wonGame,
       moreOffensivelyEfficient: winningTeam.offensiveEfficiency > losingTeam.offensiveEfficiency,
+      offensiveEfficiencyGap: winningTeam.offensiveEfficiency - losingTeam.offensiveEfficiency,
       moreDefensivelyEfficient: winningTeam.defensiveEfficiency < losingTeam.defensiveEfficiency,
-      hadHigherWinningPercentage: winningTeam.winningPercentage > losingTeam.winningPercentage
+      defensiveEfficiencyGap: losingTeam.defensiveEfficiency - winningTeam.defensiveEfficiency,
+      hadHigherWinningPercentage: winningTeam.winningPercentage > losingTeam.winningPercentage,
+      winningPercentageGap: winningTeam.winningPercentage - losingTeam.winningPercentage
     };
   }
 }
