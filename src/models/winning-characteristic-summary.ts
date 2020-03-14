@@ -3,4 +3,5 @@ export interface WinningCharacteristicSummary {
   moreOffensivelyEfficient: number;
   moreDefensivelyEfficient: number;
   hadHigherWinningPercentage: number;
+  averagePointGap: number;
 }

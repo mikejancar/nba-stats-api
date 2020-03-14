@@ -6,4 +6,5 @@ export interface WinningCharacteristics {
   defensiveEfficiencyGap: number;
   hadHigherWinningPercentage: boolean;
   winningPercentageGap: number;
+  pointGap: number;
 }
