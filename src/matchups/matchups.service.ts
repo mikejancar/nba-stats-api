@@ -3,6 +3,8 @@ import { Injectable } from '@nestjs/common';
 import { FormattingService } from '../formatting/formatting.service';
 
 @Injectable()
-export class StatsService {
+export class MatchupsService {
   constructor(private formattingService: FormattingService) { }
+
+
 }

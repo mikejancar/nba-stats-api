@@ -1,12 +1,5 @@
-export interface BoxScoreTeam {
-  teamId: number;
-  abbreviation: string;
-  teamName: string;
-  pointsScored: number;
+import { Team } from './team';
+
+export interface BoxScoreTeam extends Team {
   wonGame: boolean;
-  winningPercentage?: number;
-  offensiveEfficiency?: number;
-  offensiveRank?: number;
-  defensiveEfficiency?: number;
-  defensiveRank?: number;
 }

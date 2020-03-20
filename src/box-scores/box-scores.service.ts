@@ -112,8 +112,10 @@ export class BoxScoresService {
       teamId: row[BoxScoreColumns.TEAM_ID],
       teamName: row[BoxScoreColumns.TEAM_NAME],
       abbreviation: row[BoxScoreColumns.TEAM_ABBREVIATION],
-      pointsScored: row[BoxScoreColumns.PTS],
-      wonGame: row[BoxScoreColumns.WL] === 'W'
+      wonGame: row[BoxScoreColumns.WL] === 'W',
+      advancedStats: {
+        pointsScored: row[BoxScoreColumns.PTS]
+      }
     };
   }
 
@@ -134,11 +136,11 @@ export class BoxScoresService {
       throw new Error(errorMessage);
     }
 
-    team.winningPercentage = teamData[AdvancedTeamStatsColumns.W_PCT];
-    team.offensiveEfficiency = teamData[AdvancedTeamStatsColumns.OFF_RATING];
-    team.offensiveRank = teamData[AdvancedTeamStatsColumns.OFF_RATING_RANK];
-    team.defensiveEfficiency = teamData[AdvancedTeamStatsColumns.DEF_RATING];
-    team.defensiveRank = teamData[AdvancedTeamStatsColumns.DEF_RATING_RANK];
+    team.advancedStats.winningPercentage = teamData[AdvancedTeamStatsColumns.W_PCT];
+    team.advancedStats.offensiveEfficiency = teamData[AdvancedTeamStatsColumns.OFF_RATING];
+    team.advancedStats.offensiveRank = teamData[AdvancedTeamStatsColumns.OFF_RATING_RANK];
+    team.advancedStats.defensiveEfficiency = teamData[AdvancedTeamStatsColumns.DEF_RATING];
+    team.advancedStats.defensiveRank = teamData[AdvancedTeamStatsColumns.DEF_RATING_RANK];
   }
 
   determineWinningCharacteristics(boxScore: BoxScore): void {
@@ -147,13 +149,13 @@ export class BoxScoresService {
 
     boxScore.winningCharacteristics = {
       wasHomeTeam: boxScore.homeTeam.wonGame,
-      moreOffensivelyEfficient: winningTeam.offensiveEfficiency > losingTeam.offensiveEfficiency,
-      offensiveEfficiencyGap: winningTeam.offensiveEfficiency - losingTeam.offensiveEfficiency,
-      moreDefensivelyEfficient: winningTeam.defensiveEfficiency < losingTeam.defensiveEfficiency,
-      defensiveEfficiencyGap: losingTeam.defensiveEfficiency - winningTeam.defensiveEfficiency,
-      hadHigherWinningPercentage: winningTeam.winningPercentage > losingTeam.winningPercentage,
-      winningPercentageGap: winningTeam.winningPercentage - losingTeam.winningPercentage,
-      pointGap: winningTeam.pointsScored - losingTeam.pointsScored
+      moreOffensivelyEfficient: winningTeam.advancedStats.offensiveEfficiency > losingTeam.advancedStats.offensiveEfficiency,
+      offensiveEfficiencyGap: winningTeam.advancedStats.offensiveEfficiency - losingTeam.advancedStats.offensiveEfficiency,
+      moreDefensivelyEfficient: winningTeam.advancedStats.defensiveEfficiency < losingTeam.advancedStats.defensiveEfficiency,
+      defensiveEfficiencyGap: losingTeam.advancedStats.defensiveEfficiency - winningTeam.advancedStats.defensiveEfficiency,
+      hadHigherWinningPercentage: winningTeam.advancedStats.winningPercentage > losingTeam.advancedStats.winningPercentage,
+      winningPercentageGap: winningTeam.advancedStats.winningPercentage - losingTeam.advancedStats.winningPercentage,
+      pointGap: winningTeam.advancedStats.pointsScored - losingTeam.advancedStats.pointsScored
     };
   }
 }

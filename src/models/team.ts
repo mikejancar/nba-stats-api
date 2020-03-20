@@ -1,7 +1,10 @@
+import { AdvancedTeamStats } from './advanced-team-stats';
+
 export interface Team {
   teamId: number;
-  abbreviation: string;
   teamName: string;
-  simpleName: string;
-  location: string;
+  abbreviation?: string;
+  simpleName?: string;
+  location?: string;
+  advancedStats?: AdvancedTeamStats;
 }
