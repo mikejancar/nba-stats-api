@@ -3,16 +3,22 @@ import fs from 'fs';
 import fetch from 'node-fetch';
 
 import { Constants } from '../app.constants';
+import { DataService } from '../data/data.service';
 import { FormattingService } from '../formatting/formatting.service';
 import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-response';
 import { Team } from '../models/team';
 
 @Injectable()
 export class TeamsService {
-  constructor(private formattingService: FormattingService) { }
+  constructor(private dataService: DataService, private formattingService: FormattingService) { }
 
-  getTeams(): Team[] {
-    return JSON.parse(fs.readFileSync(`${Constants.dataDirectory}\\teams.json`, 'utf-8'));
+  getTeams(asOf?: string): Team[] {
+    return this.dataService.getAdvancedTeamStats(asOf);
+  }
+
+  getTeam(teamId: number, asOf?: string): Team {
+    const allTeams: Team[] = this.dataService.getAdvancedTeamStats(asOf);
+    return allTeams.find(team => team.teamId === teamId);
   }
 
   getAdvancedTeamStats(upToDate: string): any {
