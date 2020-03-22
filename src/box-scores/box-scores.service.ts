@@ -47,7 +47,21 @@ export class BoxScoresService {
     }
   }
 
-  buildBoxScoreSummary(endDate: string, daysOfHistory: number, excludeBoxScores = true): BoxScoreSummary {
+  buildBoxScoreSummary(endDate: string, daysOfHistory: number, excludeBoxScores = true, filter?: (box: BoxScore) => boolean): BoxScoreSummary {
+    const boxScoreSummary = this.getRangeOfEnhancedBoxScores(endDate, daysOfHistory);
+
+    const filterBy = filter || (() => true);
+    boxScoreSummary.boxScores = boxScoreSummary.boxScores.filter(filterBy);
+
+    this.summarizeWinningCharacteristics(boxScoreSummary);
+
+    if (excludeBoxScores) {
+      boxScoreSummary.boxScores = [];
+    }
+    return boxScoreSummary;
+  }
+
+  getRangeOfEnhancedBoxScores(endDate: string, daysOfHistory: number): BoxScoreSummary {
     const lastDate = parseISO(endDate);
     let firstDate = addDays(lastDate, -daysOfHistory);
 
@@ -63,21 +77,17 @@ export class BoxScoresService {
       firstDate = addDays(firstDate, 1);
     }
 
-    this.summarizeWinningCharacteristics(boxScoreSummary);
-    if (excludeBoxScores) {
-      boxScoreSummary.boxScores = [];
-    }
     return boxScoreSummary;
   }
 
   summarizeWinningCharacteristics(boxScoreSummary: BoxScoreSummary): void {
     const totalBoxScores = boxScoreSummary.boxScores.length;
     boxScoreSummary.winningCharacteristics = {
-      wasHomeTeam: boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.wasHomeTeam).length / totalBoxScores,
-      moreOffensivelyEfficient: boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.moreOffensivelyEfficient).length / totalBoxScores,
-      moreDefensivelyEfficient: boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.moreDefensivelyEfficient).length / totalBoxScores,
-      hadHigherWinningPercentage: boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.hadHigherWinningPercentage).length / totalBoxScores,
-      averagePointGap: boxScoreSummary.boxScores.map(box => box.winningCharacteristics.pointGap).reduce((accum, next) => accum + next) / totalBoxScores
+      wasHomeTeam: this.formattingService.roundToNthDigit(boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.wasHomeTeam).length / totalBoxScores, 3),
+      moreOffensivelyEfficient: this.formattingService.roundToNthDigit(boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.moreOffensivelyEfficient).length / totalBoxScores, 3),
+      moreDefensivelyEfficient: this.formattingService.roundToNthDigit(boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.moreDefensivelyEfficient).length / totalBoxScores, 3),
+      hadHigherWinningPercentage: this.formattingService.roundToNthDigit(boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.hadHigherWinningPercentage).length / totalBoxScores, 3),
+      averagePointGap: this.formattingService.roundToNthDigit(boxScoreSummary.boxScores.map(box => box.winningCharacteristics.pointGap).reduce((accum, next) => accum + next) / totalBoxScores, 2)
     };
   }
 
@@ -150,11 +160,11 @@ export class BoxScoresService {
     boxScore.winningCharacteristics = {
       wasHomeTeam: boxScore.homeTeam.wonGame,
       moreOffensivelyEfficient: winningTeam.advancedStats.offensiveEfficiency > losingTeam.advancedStats.offensiveEfficiency,
-      offensiveEfficiencyGap: winningTeam.advancedStats.offensiveEfficiency - losingTeam.advancedStats.offensiveEfficiency,
+      offensiveEfficiencyGap: this.formattingService.roundToNthDigit(winningTeam.advancedStats.offensiveEfficiency - losingTeam.advancedStats.offensiveEfficiency, 3),
       moreDefensivelyEfficient: winningTeam.advancedStats.defensiveEfficiency < losingTeam.advancedStats.defensiveEfficiency,
-      defensiveEfficiencyGap: losingTeam.advancedStats.defensiveEfficiency - winningTeam.advancedStats.defensiveEfficiency,
+      defensiveEfficiencyGap: this.formattingService.roundToNthDigit(losingTeam.advancedStats.defensiveEfficiency - winningTeam.advancedStats.defensiveEfficiency, 3),
       hadHigherWinningPercentage: winningTeam.advancedStats.winningPercentage > losingTeam.advancedStats.winningPercentage,
-      winningPercentageGap: winningTeam.advancedStats.winningPercentage - losingTeam.advancedStats.winningPercentage,
+      winningPercentageGap: this.formattingService.roundToNthDigit(winningTeam.advancedStats.winningPercentage - losingTeam.advancedStats.winningPercentage, 3),
       pointGap: winningTeam.advancedStats.pointsScored - losingTeam.advancedStats.pointsScored
     };
   }

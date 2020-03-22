@@ -1,9 +1,7 @@
-import { AdvancedTeamStats } from './advanced-team-stats';
-import { Team } from './team';
+import { MatchupTeam } from './matchup-team';
 
 export interface Matchup {
   gameId: string;
-  homeTeam: Team;
-  awayTeam: Team;
-  homeVsAway: AdvancedTeamStats;
+  homeTeam: MatchupTeam;
+  awayTeam: MatchupTeam;
 }
