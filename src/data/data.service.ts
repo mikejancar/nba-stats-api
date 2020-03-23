@@ -10,6 +10,7 @@ import { BoxScoreColumns } from '../models/box-score-columns.enum';
 import { BoxScoreResponse } from '../models/box-score-response';
 import { BoxScoreTeam } from '../models/box-score-team';
 import { Team } from '../models/team';
+import { teams as teamsJson } from './teams.json';
 
 @Injectable()
 export class DataService {
@@ -40,9 +41,11 @@ export class DataService {
 
     for (let index = 0; index < teamList.length; index++) {
       const teamStats: any[] = teamList[index];
+      const teamName = teamStats[AdvancedTeamStatsColumns.TEAM_NAME];
       teams.push({
         teamId: teamStats[AdvancedTeamStatsColumns.TEAM_ID],
-        teamName: teamStats[AdvancedTeamStatsColumns.TEAM_NAME],
+        teamName,
+        abbreviation: teamsJson.find(team => team.teamName === teamName).abbreviation,
         advancedStats: {
           winningPercentage: teamStats[AdvancedTeamStatsColumns.W_PCT],
           offensiveEfficiency: teamStats[AdvancedTeamStatsColumns.OFF_RATING],
