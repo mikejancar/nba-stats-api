@@ -88,17 +88,20 @@ export class MatchupsService {
   }
 
   private predictByWinningPercentage(team: MatchupTeam, scheduleDate: string): BoxScoreSummary {
-    const winningPercentageFilter = (box: BoxScore) => Math.abs(team.statGaps.winningPercentage - box.winningCharacteristics.winningPercentageGap) <= 0.05;
-    return this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, winningPercentageFilter);
+    const comparisonRange = 0.05;
+    const winningPercentageFilter = (box: BoxScore) => Math.abs(team.statGaps.winningPercentage - box.winningCharacteristics.winningPercentageGap) <= comparisonRange;
+    return this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, winningPercentageFilter, comparisonRange);
   }
 
   private predictByOffensiveEfficiency(team: MatchupTeam, scheduleDate: string): BoxScoreSummary {
-    const offensiveEfficiencyFilter = (box: BoxScore) => Math.abs(team.statGaps.offensiveEfficiency - box.winningCharacteristics.offensiveEfficiencyGap) <= 0.5;
-    return this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, offensiveEfficiencyFilter);
+    const comparisonRange = 0.5;
+    const offensiveEfficiencyFilter = (box: BoxScore) => Math.abs(team.statGaps.offensiveEfficiency - box.winningCharacteristics.offensiveEfficiencyGap) <= comparisonRange;
+    return this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, offensiveEfficiencyFilter, comparisonRange);
   }
 
   private predictByDefensiveEfficiency(team: MatchupTeam, scheduleDate: string): BoxScoreSummary {
-    const defensiveEfficiencyFilter = (box: BoxScore) => Math.abs(team.statGaps.defensiveEfficiency - box.winningCharacteristics.defensiveEfficiencyGap) <= 0.5;
-    return this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, defensiveEfficiencyFilter);
+    const comparisonRange = 0.5;
+    const defensiveEfficiencyFilter = (box: BoxScore) => Math.abs(team.statGaps.defensiveEfficiency - box.winningCharacteristics.defensiveEfficiencyGap) <= comparisonRange;
+    return this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, defensiveEfficiencyFilter, comparisonRange);
   }
 }

@@ -5,5 +5,6 @@ export interface BoxScoreSummary {
   fromDate: Date;
   toDate: Date;
   boxScores: BoxScore[];
+  comparisonRange?: number;
   winningCharacteristics?: WinningCharacteristicSummary;
 }

@@ -44,7 +44,7 @@ export class BoxScoresService {
     }
   }
 
-  buildBoxScoreSummary(endDate: string, daysOfHistory: number, excludeBoxScores = true, filter?: (box: BoxScore) => boolean): BoxScoreSummary {
+  buildBoxScoreSummary(endDate: string, daysOfHistory: number, excludeBoxScores = true, filter?: (box: BoxScore) => boolean, comparisonRange?: number): BoxScoreSummary {
     const boxScoreSummary = this.getRangeOfEnhancedBoxScores(endDate, daysOfHistory);
 
     const filterBy = filter || (() => true);
@@ -54,6 +54,9 @@ export class BoxScoresService {
 
     if (excludeBoxScores) {
       boxScoreSummary.boxScores = [];
+    }
+    if (comparisonRange) {
+      boxScoreSummary.comparisonRange = comparisonRange;
     }
     return boxScoreSummary;
   }
