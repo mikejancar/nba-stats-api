@@ -44,8 +44,8 @@ export class BoxScoresService {
     }
   }
 
-  buildBoxScoreSummary(endDate: string, daysOfHistory: number, excludeBoxScores = true, filter?: (box: BoxScore) => boolean, comparisonRange?: number): BoxScoreSummary {
-    const boxScoreSummary = this.getRangeOfEnhancedBoxScores(endDate, daysOfHistory);
+  async buildBoxScoreSummary(endDate: string, daysOfHistory: number, excludeBoxScores = true, filter?: (box: BoxScore) => boolean, comparisonRange?: number): Promise<BoxScoreSummary> {
+    const boxScoreSummary = await this.getRangeOfEnhancedBoxScores(endDate, daysOfHistory);
 
     const filterBy = filter || (() => true);
     boxScoreSummary.boxScores = boxScoreSummary.boxScores.filter(filterBy);
@@ -61,7 +61,7 @@ export class BoxScoresService {
     return boxScoreSummary;
   }
 
-  getRangeOfEnhancedBoxScores(endDate: string, daysOfHistory: number): BoxScoreSummary {
+  async getRangeOfEnhancedBoxScores(endDate: string, daysOfHistory: number): Promise<BoxScoreSummary> {
     const lastDate = parseISO(endDate);
     let firstDate = addDays(lastDate, -daysOfHistory);
 
@@ -73,7 +73,7 @@ export class BoxScoresService {
 
     while (firstDate <= lastDate) {
       const dateFormatted = format(firstDate, 'yyyyMMdd');
-      boxScoreSummary.boxScores.push(...this.dataService.getEnhancedBoxScores(dateFormatted));
+      boxScoreSummary.boxScores.push(...await this.dataService.getEnhancedBoxScores(dateFormatted));
       firstDate = addDays(firstDate, 1);
     }
 

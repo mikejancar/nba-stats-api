@@ -12,12 +12,12 @@ import { Team } from '../models/team';
 export class TeamsService {
   constructor(private dataService: DataService, private formattingService: FormattingService) { }
 
-  getTeams(asOf?: string): Team[] {
-    return this.dataService.getAdvancedTeamStats(asOf);
+  async getTeams(asOf?: string): Promise<Team[]> {
+    return await this.dataService.getAdvancedTeamStats(asOf);
   }
 
-  getTeam(teamId: number, asOf?: string): Team {
-    const allTeams: Team[] = this.dataService.getAdvancedTeamStats(asOf);
+  async getTeam(teamId: number, asOf?: string): Promise<Team> {
+    const allTeams: Team[] = await this.dataService.getAdvancedTeamStats(asOf);
     return allTeams.find(team => team.teamId === teamId);
   }
 

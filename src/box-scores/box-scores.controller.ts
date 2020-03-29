@@ -16,7 +16,7 @@ export class BoxScoresController {
   }
 
   @Get('/enhanced/:datePlayed')
-  getEnhancedBoxScores(@Param('datePlayed') datePlayed: string, @Query('daysOfHistory') daysOfHistory = 0): BoxScoreSummary {
-    return this.boxScoresService.buildBoxScoreSummary(datePlayed, daysOfHistory);
+  async getEnhancedBoxScores(@Param('datePlayed') datePlayed: string, @Query('daysOfHistory') daysOfHistory = 0): Promise<BoxScoreSummary> {
+    return await this.boxScoresService.buildBoxScoreSummary(datePlayed, daysOfHistory);
   }
 }

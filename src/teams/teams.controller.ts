@@ -9,13 +9,13 @@ export class TeamsController {
   constructor(private dataService: DataService, private teamsService: TeamsService) { }
 
   @Get()
-  getTeams(@Query('asOf') asOf?: string): Team[] {
-    return this.dataService.getAdvancedTeamStats(asOf);
+  async getTeams(@Query('asOf') asOf?: string): Promise<Team[]> {
+    return await this.dataService.getAdvancedTeamStats(asOf);
   }
 
   @Get(':teamId')
-  getTeam(@Param('teamId') teamId: string, @Query('asOf') asOf?: string): Team {
-    const teamStats: Team[] = this.dataService.getAdvancedTeamStats(asOf);
+  async getTeam(@Param('teamId') teamId: string, @Query('asOf') asOf?: string): Promise<Team> {
+    const teamStats: Team[] = await this.dataService.getAdvancedTeamStats(asOf);
     return teamStats.find(team => team.teamId === parseInt(teamId));
   }
 

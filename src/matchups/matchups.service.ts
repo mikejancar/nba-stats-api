@@ -30,23 +30,23 @@ export class MatchupsService {
 
     return fetch(url, { method: 'GET', headers: Constants.standardHeaders })
       .then(rawResponse => rawResponse.json())
-      .then((response: MatchupResponse) => {
+      .then(async (response: MatchupResponse) => {
         console.log(`Successfully retrieved matchups from ${dateFormatted}`);
-        const matchups = this.createMatchups(response, scheduleDate);
+        const matchups = await this.createMatchups(response, scheduleDate);
         this.matchupsData.set(scheduleDate, matchups);
         return matchups;
       });
   }
 
-  private createMatchups(response: MatchupResponse, scheduleDate: string): Matchup[] {
+  private async createMatchups(response: MatchupResponse, scheduleDate: string): Promise<Matchup[]> {
     const matchups: Matchup[] = [];
     for (let i = 0; i < response.resultSets[0].rowSet.length; i++) {
       const matchupData = response.resultSets[0].rowSet[i];
-      const homeTeam: MatchupTeam = this.teamsService.getTeam(matchupData[MatchupColumns.HOME_TEAM_ID]);
-      const awayTeam: MatchupTeam = this.teamsService.getTeam(matchupData[MatchupColumns.VISITOR_TEAM_ID]);
+      const homeTeam: MatchupTeam = await this.teamsService.getTeam(matchupData[MatchupColumns.HOME_TEAM_ID]);
+      const awayTeam: MatchupTeam = await this.teamsService.getTeam(matchupData[MatchupColumns.VISITOR_TEAM_ID]);
 
       this.computeStatGaps(homeTeam, awayTeam);
-      this.computePredictors(homeTeam, awayTeam, scheduleDate);
+      await this.computePredictors(homeTeam, awayTeam, scheduleDate);
 
       const matchup: Matchup = {
         gameId: matchupData[MatchupColumns.GAME_ID],
@@ -74,34 +74,34 @@ export class MatchupsService {
     };
   }
 
-  private computePredictors(homeTeam: MatchupTeam, awayTeam: MatchupTeam, scheduleDate: string): void {
-    homeTeam.predictors = this.createPredictors(homeTeam, scheduleDate);
-    awayTeam.predictors = this.createPredictors(awayTeam, scheduleDate);
+  private async computePredictors(homeTeam: MatchupTeam, awayTeam: MatchupTeam, scheduleDate: string): Promise<void> {
+    homeTeam.predictors = await this.createPredictors(homeTeam, scheduleDate);
+    awayTeam.predictors = await this.createPredictors(awayTeam, scheduleDate);
   }
 
-  private createPredictors(team: MatchupTeam, scheduleDate: string): BoxScorePredictors {
-    return {
-      winningPercentage: this.predictByWinningPercentage(team, scheduleDate),
-      offensiveEfficiency: this.predictByOffensiveEfficiency(team, scheduleDate),
-      defensiveEfficiency: this.predictByDefensiveEfficiency(team, scheduleDate)
-    };
+  private async createPredictors(team: MatchupTeam, scheduleDate: string): Promise<BoxScorePredictors> {
+    return Promise.resolve({
+      winningPercentage: await this.predictByWinningPercentage(team, scheduleDate),
+      offensiveEfficiency: await this.predictByOffensiveEfficiency(team, scheduleDate),
+      defensiveEfficiency: await this.predictByDefensiveEfficiency(team, scheduleDate)
+    });
   }
 
-  private predictByWinningPercentage(team: MatchupTeam, scheduleDate: string): BoxScoreSummary {
+  private async predictByWinningPercentage(team: MatchupTeam, scheduleDate: string): Promise<BoxScoreSummary> {
     const comparisonRange = 0.05;
     const winningPercentageFilter = (box: BoxScore) => Math.abs(team.statGaps.winningPercentage - box.winningCharacteristics.winningPercentageGap) <= comparisonRange;
-    return this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, winningPercentageFilter, comparisonRange);
+    return await this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, winningPercentageFilter, comparisonRange);
   }
 
-  private predictByOffensiveEfficiency(team: MatchupTeam, scheduleDate: string): BoxScoreSummary {
+  private async predictByOffensiveEfficiency(team: MatchupTeam, scheduleDate: string): Promise<BoxScoreSummary> {
     const comparisonRange = 0.5;
     const offensiveEfficiencyFilter = (box: BoxScore) => Math.abs(team.statGaps.offensiveEfficiency - box.winningCharacteristics.offensiveEfficiencyGap) <= comparisonRange;
-    return this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, offensiveEfficiencyFilter, comparisonRange);
+    return await this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, offensiveEfficiencyFilter, comparisonRange);
   }
 
-  private predictByDefensiveEfficiency(team: MatchupTeam, scheduleDate: string): BoxScoreSummary {
+  private async predictByDefensiveEfficiency(team: MatchupTeam, scheduleDate: string): Promise<BoxScoreSummary> {
     const comparisonRange = 0.5;
     const defensiveEfficiencyFilter = (box: BoxScore) => Math.abs(team.statGaps.defensiveEfficiency - box.winningCharacteristics.defensiveEfficiencyGap) <= comparisonRange;
-    return this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, defensiveEfficiencyFilter, comparisonRange);
+    return await this.boxScoresService.buildBoxScoreSummary(scheduleDate, 60, true, defensiveEfficiencyFilter, comparisonRange);
   }
 }

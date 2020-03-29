@@ -1,8 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import aws from 'aws-sdk';
 import fs from 'fs';
 
 import { Constants } from '../app.constants';
 import { FormattingService } from '../formatting/formatting.service';
+import { nbaStatsApi } from '../keys/aws.json';
 import { AdvancedTeamStatsColumns } from '../models/advanced-team-stats-columns.enum';
 import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-response';
 import { BoxScore } from '../models/box-score';
@@ -22,19 +24,18 @@ export class DataService {
 
   constructor(private formattingService: FormattingService) { }
 
-  getAdvancedTeamStats(asOf?: string): Team[] {
+  async getAdvancedTeamStats(asOf?: string): Promise<Team[]> {
     const statDate = asOf || this.getLatestFileDate(this.advancedTeamStatsPrefix);
 
     if (!this.advancedTeamData.has(statDate)) {
-      this.loadTeamData(statDate);
+      await this.loadTeamData(statDate);
     }
-    return this.advancedTeamData.get(statDate);
+    return Promise.resolve(this.advancedTeamData.get(statDate));
   }
 
-  private loadTeamData(asOf: string): void {
+  private async loadTeamData(asOf: string): Promise<void> {
     const dateFormatted = this.formattingService.formatDateForFileName(asOf);
-    const teamStatsFilePath = `${Constants.dataDirectory}\\${this.advancedTeamStatsPrefix}-${dateFormatted}.json`
-    const teamStatsData: AdvancedTeamsStatsResponse = JSON.parse(fs.readFileSync(teamStatsFilePath).toString());
+    const teamStatsData: AdvancedTeamsStatsResponse = await this.getAdvancedTeamStatData(dateFormatted);
     const teamList: any[][] = teamStatsData.resultSets[0].rowSet;
 
     const teams: Team[] = [];
@@ -59,17 +60,23 @@ export class DataService {
     this.advancedTeamData.set(asOf, teams);
   }
 
-  getEnhancedBoxScores(datePlayed: string): BoxScore[] {
-    if (!this.boxScoreData.has(datePlayed)) {
-      this.loadBoxScoreData(datePlayed);
-    }
-    return this.boxScoreData.get(datePlayed);
+  private async getAdvancedTeamStatData(dateFormatted: string): Promise<AdvancedTeamsStatsResponse> {
+    const s3 = new aws.S3({ accessKeyId: nbaStatsApi.id, secretAccessKey: nbaStatsApi.key });
+    const params = { Bucket: 'nba-stat-data', Key: `advanced-team-stats/${this.advancedTeamStatsPrefix}-${dateFormatted}.json` };
+    const teamStatsData = await s3.getObject(params).promise();
+    return JSON.parse(teamStatsData.Body.toString());
   }
 
-  private loadBoxScoreData(datePlayed: string): void {
+  async getEnhancedBoxScores(datePlayed: string): Promise<BoxScore[]> {
+    if (!this.boxScoreData.has(datePlayed)) {
+      await this.loadBoxScoreData(datePlayed);
+    }
+    return Promise.resolve(this.boxScoreData.get(datePlayed));
+  }
+
+  private async loadBoxScoreData(datePlayed: string): Promise<void> {
     const dateFormatted = this.formattingService.formatDateForFileName(datePlayed);
-    const boxScoreFilePath = `${Constants.dataDirectory}\\${this.boxScoresPrefix}-${dateFormatted}.json`
-    const boxScoreData: BoxScoreResponse = JSON.parse(fs.readFileSync(boxScoreFilePath).toString());
+    const boxScoreData: BoxScoreResponse = await this.getBoxScoreData(dateFormatted);
 
     const boxScores: BoxScore[] = [];
 
@@ -85,12 +92,19 @@ export class DataService {
         awayTeam: rowOne[BoxScoreColumns.MATCHUP].includes('@') ? teamOne : teamTwo,
         datePlayed: rowOne[BoxScoreColumns.GAME_DATE]
       };
-      this.enhanceBoxScore(boxScore, datePlayed);
+      await this.enhanceBoxScore(boxScore, datePlayed);
       this.determineWinningCharacteristics(boxScore);
       boxScores.push(boxScore);
     }
 
     this.boxScoreData.set(datePlayed, boxScores);
+  }
+
+  private async getBoxScoreData(dateFormatted: string): Promise<BoxScoreResponse> {
+    const s3 = new aws.S3({ accessKeyId: nbaStatsApi.id, secretAccessKey: nbaStatsApi.key });
+    const params = { Bucket: 'nba-stat-data', Key: `box-scores/${this.boxScoresPrefix}-${dateFormatted}.json` };
+    const boxScoreData = await s3.getObject(params).promise();
+    return JSON.parse(boxScoreData.Body.toString());
   }
 
   private createTeamFromBoxScore(row: any[]): BoxScoreTeam {
@@ -105,8 +119,8 @@ export class DataService {
     };
   }
 
-  private enhanceBoxScore(boxScore: BoxScore, datePlayed: string): void {
-    const advancedTeamStats = this.getAdvancedTeamStats(datePlayed);
+  private async enhanceBoxScore(boxScore: BoxScore, datePlayed: string): Promise<void> {
+    const advancedTeamStats = await this.getAdvancedTeamStats(datePlayed);
 
     this.loadAdvancedStats(boxScore.homeTeam, advancedTeamStats);
     this.loadAdvancedStats(boxScore.awayTeam, advancedTeamStats);
