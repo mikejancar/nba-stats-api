@@ -25,7 +25,7 @@ export class BoxScoresService {
         console.log(`Successfully retrieved box scores from ${response.parameters.DateFrom}`);
         return response;
       })
-      .catch(error => console.log(error));
+      .catch(error => console.error(`Failed to retrieve box scores from ${dateFormatted}`, error));
   }
 
   async getRangeOfBoxScores(fromDate: string, upToDate: string): Promise<any> {

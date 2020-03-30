@@ -35,7 +35,8 @@ export class MatchupsService {
         const matchups = await this.createMatchups(response, scheduleDate);
         this.matchupsData.set(scheduleDate, matchups);
         return matchups;
-      });
+      })
+      .catch(error => console.error(`Failed to retrieve matchups from ${dateFormatted}`, error));
   }
 
   private async createMatchups(response: MatchupResponse, scheduleDate: string): Promise<Matchup[]> {

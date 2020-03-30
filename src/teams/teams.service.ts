@@ -32,7 +32,7 @@ export class TeamsService {
         console.log(`Successfully retrieved advanced team stats from ${response.parameters.DateFrom} to ${response.parameters.DateTo}`);
         return response;
       })
-      .catch(error => console.log(error));
+      .catch(error => console.error(`Failed to retrieve advanced team stats up to ${dateFormatted}`, error));
   }
 
   async getRangeOfAdvancedTeamStats(fromDate: string, upToDate: string): Promise<any> {
