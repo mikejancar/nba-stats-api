@@ -1,10 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import aws from 'aws-sdk';
-import fs from 'fs';
 
-import { Constants } from '../app.constants';
 import { FormattingService } from '../formatting/formatting.service';
-import { nbaStatsApi } from '../keys/aws.json';
 import { AdvancedTeamStatsColumns } from '../models/advanced-team-stats-columns.enum';
 import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-response';
 import { BoxScore } from '../models/box-score';
@@ -12,28 +8,44 @@ import { BoxScoreColumns } from '../models/box-score-columns.enum';
 import { BoxScoreResponse } from '../models/box-score-response';
 import { BoxScoreTeam } from '../models/box-score-team';
 import { Team } from '../models/team';
+import { AvailableBuckets, NetworkService } from '../network/network.service';
+import { StatsService } from '../stats/stats.service';
 import { teams as teamsJson } from './teams.json';
 
 @Injectable()
 export class DataService {
   private advancedTeamData: Map<string, Team[]> = new Map();
   private boxScoreData: Map<string, BoxScore[]> = new Map();
+  private latestAdvancedDate = '';
 
-  private advancedTeamStatsPrefix = 'advanced-team-stats';
-  private boxScoresPrefix = 'box-scores';
+  constructor(private formattingService: FormattingService, private networkService: NetworkService, private statsService: StatsService) {}
 
-  constructor(private formattingService: FormattingService) { }
+  getTeam(teamId: number): Team {
+    const team: any = teamsJson.find(team => team.teamId === teamId.toString());
+    if (team) {
+      return {
+        teamId,
+        teamName: team.fullName,
+        abbreviation: team.tricode
+      };
+    }
+    throw new Error(`Invalid team ID specified: ${teamId}`);
+  }
 
   async getAdvancedTeamStats(asOf?: string): Promise<Team[]> {
-    const statDate = asOf || this.getLatestFileDate(this.advancedTeamStatsPrefix);
+    if (!this.latestAdvancedDate) {
+      this.latestAdvancedDate = await this.networkService.getNewestBucketObjectDate(AvailableBuckets.AdvancedTeamStats);
+    }
+    const asOfIsValid = !!asOf && parseInt(asOf) <= parseInt(this.latestAdvancedDate);
+    const statDate = asOfIsValid ? asOf : this.latestAdvancedDate;
 
     if (!this.advancedTeamData.has(statDate)) {
-      await this.loadTeamData(statDate);
+      await this.loadAdvancedTeamStatData(statDate);
     }
     return Promise.resolve(this.advancedTeamData.get(statDate));
   }
 
-  private async loadTeamData(asOf: string): Promise<void> {
+  async loadAdvancedTeamStatData(asOf: string): Promise<void> {
     const dateFormatted = this.formattingService.formatDateForFileName(asOf);
     const teamStatsData: AdvancedTeamsStatsResponse = await this.getAdvancedTeamStatData(dateFormatted);
     const teamList: any[][] = teamStatsData.resultSets[0].rowSet;
@@ -43,10 +55,11 @@ export class DataService {
     for (let index = 0; index < teamList.length; index++) {
       const teamStats: any[] = teamList[index];
       const teamName = teamStats[AdvancedTeamStatsColumns.TEAM_NAME];
+      const teamId = teamStats[AdvancedTeamStatsColumns.TEAM_ID];
       teams.push({
-        teamId: teamStats[AdvancedTeamStatsColumns.TEAM_ID],
+        teamId,
         teamName,
-        abbreviation: teamsJson.find(team => team.teamName === teamName).abbreviation,
+        abbreviation: teamsJson.find(team => team.teamId === teamId.toString()).tricode,
         advancedStats: {
           winningPercentage: teamStats[AdvancedTeamStatsColumns.W_PCT],
           offensiveEfficiency: teamStats[AdvancedTeamStatsColumns.OFF_RATING],
@@ -58,13 +71,13 @@ export class DataService {
     }
 
     this.advancedTeamData.set(asOf, teams);
+    return Promise.resolve();
   }
 
   private async getAdvancedTeamStatData(dateFormatted: string): Promise<AdvancedTeamsStatsResponse> {
-    const s3 = new aws.S3({ accessKeyId: nbaStatsApi.id, secretAccessKey: nbaStatsApi.key });
-    const params = { Bucket: 'nba-stat-data', Key: `advanced-team-stats/${this.advancedTeamStatsPrefix}-${dateFormatted}.json` };
-    const teamStatsData = await s3.getObject(params).promise();
-    return JSON.parse(teamStatsData.Body.toString());
+    const teamStatsData = await this.networkService.getObjectFromBucket(AvailableBuckets.AdvancedTeamStats, dateFormatted);
+    const teamStatsResponse = JSON.parse(teamStatsData.Body.toString());
+    return Promise.resolve(teamStatsResponse);
   }
 
   async getEnhancedBoxScores(datePlayed: string): Promise<BoxScore[]> {
@@ -93,7 +106,7 @@ export class DataService {
         datePlayed: rowOne[BoxScoreColumns.GAME_DATE]
       };
       await this.enhanceBoxScore(boxScore, datePlayed);
-      this.determineWinningCharacteristics(boxScore);
+      this.statsService.determineWinningCharacteristics(boxScore);
       boxScores.push(boxScore);
     }
 
@@ -101,10 +114,9 @@ export class DataService {
   }
 
   private async getBoxScoreData(dateFormatted: string): Promise<BoxScoreResponse> {
-    const s3 = new aws.S3({ accessKeyId: nbaStatsApi.id, secretAccessKey: nbaStatsApi.key });
-    const params = { Bucket: 'nba-stat-data', Key: `box-scores/${this.boxScoresPrefix}-${dateFormatted}.json` };
-    const boxScoreData = await s3.getObject(params).promise();
-    return JSON.parse(boxScoreData.Body.toString());
+    const boxScoreData = await this.networkService.getObjectFromBucket(AvailableBuckets.BoxScores, dateFormatted);
+    const boxScoreResponse = JSON.parse(boxScoreData.Body.toString());
+    return Promise.resolve(boxScoreResponse);
   }
 
   private createTeamFromBoxScore(row: any[]): BoxScoreTeam {
@@ -133,26 +145,5 @@ export class DataService {
       pointsScored: team.advancedStats.pointsScored,
       ...teamStats.advancedStats
     };
-  }
-
-  private determineWinningCharacteristics(boxScore: BoxScore): void {
-    const winningTeam = boxScore.homeTeam.wonGame ? boxScore.homeTeam : boxScore.awayTeam;
-    const losingTeam = boxScore.homeTeam.wonGame ? boxScore.awayTeam : boxScore.homeTeam;
-
-    boxScore.winningCharacteristics = {
-      wasHomeTeam: boxScore.homeTeam.wonGame,
-      moreOffensivelyEfficient: winningTeam.advancedStats.offensiveEfficiency > losingTeam.advancedStats.offensiveEfficiency,
-      offensiveEfficiencyGap: this.formattingService.roundToNthDigit(winningTeam.advancedStats.offensiveEfficiency - losingTeam.advancedStats.offensiveEfficiency, 3),
-      moreDefensivelyEfficient: winningTeam.advancedStats.defensiveEfficiency < losingTeam.advancedStats.defensiveEfficiency,
-      defensiveEfficiencyGap: this.formattingService.roundToNthDigit(losingTeam.advancedStats.defensiveEfficiency - winningTeam.advancedStats.defensiveEfficiency, 3),
-      hadHigherWinningPercentage: winningTeam.advancedStats.winningPercentage > losingTeam.advancedStats.winningPercentage,
-      winningPercentageGap: this.formattingService.roundToNthDigit(winningTeam.advancedStats.winningPercentage - losingTeam.advancedStats.winningPercentage, 3),
-      pointGap: winningTeam.advancedStats.pointsScored - losingTeam.advancedStats.pointsScored
-    };
-  }
-
-  private getLatestFileDate(prefix: string): string {
-    const files = fs.readdirSync(Constants.dataDirectory).filter(file => file.startsWith(prefix)).sort();
-    return files[files.length - 1].replace(`${prefix}-`, '').replace('.json', '').replace(/-/g, '');
   }
 }

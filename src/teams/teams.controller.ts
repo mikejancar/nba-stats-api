@@ -1,22 +1,20 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { Team } from 'src/models/team';
 
-import { DataService } from '../data/data.service';
 import { TeamsService } from './teams.service';
 
 @Controller('teams')
 export class TeamsController {
-  constructor(private dataService: DataService, private teamsService: TeamsService) { }
+  constructor(private teamsService: TeamsService) {}
 
   @Get()
   async getTeams(@Query('asOf') asOf?: string): Promise<Team[]> {
-    return await this.dataService.getAdvancedTeamStats(asOf);
+    return await this.teamsService.getAdvancedTeams(asOf);
   }
 
   @Get(':teamId')
   async getTeam(@Param('teamId') teamId: string, @Query('asOf') asOf?: string): Promise<Team> {
-    const teamStats: Team[] = await this.dataService.getAdvancedTeamStats(asOf);
-    return teamStats.find(team => team.teamId === parseInt(teamId));
+    return await this.teamsService.getAdvancedTeam(parseInt(teamId), asOf);
   }
 
   @Get('advancedStats/:upToDate')
