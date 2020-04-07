@@ -4,11 +4,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch from 'node-fetch';
 
 import { nbaStatsApi } from '../keys/aws.json';
-
-export enum AvailableBuckets {
-  AdvancedTeamStats = 'advanced-team-stats',
-  BoxScores = 'box-scores'
-}
+import { DataSources } from '../models/data-sources.enum';
 
 @Injectable()
 export class NetworkService {
@@ -33,14 +29,14 @@ export class NetworkService {
     return fetch(url, options).then(rawResponse => rawResponse.json());
   }
 
-  async getObjectFromBucket(bucket: AvailableBuckets, key: string): Promise<any> {
+  async getObjectFromBucket(bucket: DataSources, key: string): Promise<any> {
     const s3 = new aws.S3({ accessKeyId: nbaStatsApi.id, secretAccessKey: nbaStatsApi.key });
     const params = { Bucket: this.bucket, Key: `${bucket}/${bucket}-${key}.json` };
     console.log(`Getting bucket object: ${params.Key}`);
     return await s3.getObject(params).promise();
   }
 
-  async getNewestBucketObjectDate(bucket: AvailableBuckets): Promise<string> {
+  async getNewestBucketObjectDate(bucket: DataSources): Promise<string> {
     const s3 = new aws.S3({ accessKeyId: nbaStatsApi.id, secretAccessKey: nbaStatsApi.key });
     const params = { Bucket: this.bucket, Prefix: bucket };
     console.log(`Getting newest bucket object...`);
@@ -55,7 +51,7 @@ export class NetworkService {
     );
   }
 
-  async saveObjectToBucket(bucket: AvailableBuckets, key: string, data: any): Promise<void> {
+  async saveObjectToBucket(bucket: DataSources, key: string, data: any): Promise<void> {
     const s3 = new aws.S3({ accessKeyId: nbaStatsApi.id, secretAccessKey: nbaStatsApi.key });
     const params = { Body: data, Bucket: this.bucket, Key: `${bucket}/${bucket}-${key}.json` };
     console.log(`Saving bucket object: ${params.Key}`);

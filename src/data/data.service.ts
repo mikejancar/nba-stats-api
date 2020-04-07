@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
 
-import { FormattingService } from '../formatting/formatting.service';
+import { DateFormats, FormattingService } from '../formatting/formatting.service';
 import { AdvancedTeamStatsColumns } from '../models/advanced-team-stats-columns.enum';
 import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-response';
 import { BoxScore } from '../models/box-score';
 import { BoxScoreColumns } from '../models/box-score-columns.enum';
 import { BoxScoreResponse } from '../models/box-score-response';
 import { BoxScoreTeam } from '../models/box-score-team';
+import { DataSources } from '../models/data-sources.enum';
 import { Team } from '../models/team';
-import { AvailableBuckets, NetworkService } from '../network/network.service';
+import { NetworkService } from '../network/network.service';
 import { StatsService } from '../stats/stats.service';
 import { teams as teamsJson } from './teams.json';
 
@@ -17,8 +18,11 @@ export class DataService {
   private advancedTeamData: Map<string, Team[]> = new Map();
   private boxScoreData: Map<string, BoxScore[]> = new Map();
   private latestAdvancedDate = '';
+  private latestBoxScoreDate = '';
 
-  constructor(private formattingService: FormattingService, private networkService: NetworkService, private statsService: StatsService) {}
+  constructor(private formattingService: FormattingService, private networkService: NetworkService, private statsService: StatsService) {
+    this.preloadData();
+  }
 
   getTeam(teamId: number): Team {
     const team: any = teamsJson.find(team => team.teamId === teamId.toString());
@@ -33,11 +37,7 @@ export class DataService {
   }
 
   async getAdvancedTeamStats(asOf?: string): Promise<Team[]> {
-    if (!this.latestAdvancedDate) {
-      this.latestAdvancedDate = await this.networkService.getNewestBucketObjectDate(AvailableBuckets.AdvancedTeamStats);
-    }
-    const asOfIsValid = !!asOf && parseInt(asOf) <= parseInt(this.latestAdvancedDate);
-    const statDate = asOfIsValid ? asOf : this.latestAdvancedDate;
+    const statDate = await this.determineLatestValidDate(DataSources.AdvancedTeamStats, asOf);
 
     if (!this.advancedTeamData.has(statDate)) {
       await this.loadAdvancedTeamStatData(statDate);
@@ -45,7 +45,7 @@ export class DataService {
     return Promise.resolve(this.advancedTeamData.get(statDate));
   }
 
-  async loadAdvancedTeamStatData(asOf: string): Promise<void> {
+  private async loadAdvancedTeamStatData(asOf: string): Promise<void> {
     const dateFormatted = this.formattingService.formatDateForFileName(asOf);
     const teamStatsData: AdvancedTeamsStatsResponse = await this.getAdvancedTeamStatData(dateFormatted);
     const teamList: any[][] = teamStatsData.resultSets[0].rowSet;
@@ -75,16 +75,18 @@ export class DataService {
   }
 
   private async getAdvancedTeamStatData(dateFormatted: string): Promise<AdvancedTeamsStatsResponse> {
-    const teamStatsData = await this.networkService.getObjectFromBucket(AvailableBuckets.AdvancedTeamStats, dateFormatted);
+    const teamStatsData = await this.networkService.getObjectFromBucket(DataSources.AdvancedTeamStats, dateFormatted);
     const teamStatsResponse = JSON.parse(teamStatsData.Body.toString());
     return Promise.resolve(teamStatsResponse);
   }
 
   async getEnhancedBoxScores(datePlayed: string): Promise<BoxScore[]> {
-    if (!this.boxScoreData.has(datePlayed)) {
-      await this.loadBoxScoreData(datePlayed);
+    const statDate = await this.determineLatestValidDate(DataSources.BoxScores, datePlayed);
+
+    if (!this.boxScoreData.has(statDate)) {
+      await this.loadBoxScoreData(statDate);
     }
-    return Promise.resolve(this.boxScoreData.get(datePlayed));
+    return Promise.resolve(this.boxScoreData.get(statDate));
   }
 
   private async loadBoxScoreData(datePlayed: string): Promise<void> {
@@ -114,7 +116,7 @@ export class DataService {
   }
 
   private async getBoxScoreData(dateFormatted: string): Promise<BoxScoreResponse> {
-    const boxScoreData = await this.networkService.getObjectFromBucket(AvailableBuckets.BoxScores, dateFormatted);
+    const boxScoreData = await this.networkService.getObjectFromBucket(DataSources.BoxScores, dateFormatted);
     const boxScoreResponse = JSON.parse(boxScoreData.Body.toString());
     return Promise.resolve(boxScoreResponse);
   }
@@ -145,5 +147,49 @@ export class DataService {
       pointsScored: team.advancedStats.pointsScored,
       ...teamStats.advancedStats
     };
+  }
+
+  private async determineLatestValidDate(source: DataSources, givenDate?: string): Promise<string> {
+    let latestDate;
+    if (source === DataSources.AdvancedTeamStats) {
+      if (!this.latestAdvancedDate) {
+        this.latestAdvancedDate = await this.networkService.getNewestBucketObjectDate(source);
+      }
+      latestDate = this.latestAdvancedDate;
+    } else {
+      if (!this.latestBoxScoreDate) {
+        this.latestBoxScoreDate = await this.networkService.getNewestBucketObjectDate(source);
+      }
+      latestDate = this.latestBoxScoreDate;
+    }
+
+    const givenDateIsAvailable = !!givenDate && parseInt(givenDate) <= parseInt(latestDate);
+    return Promise.resolve(givenDateIsAvailable ? givenDate : latestDate);
+  }
+
+  async preloadData(): Promise<void> {
+    const yesterday = this.formattingService.addDaysToDate(new Date(), -1);
+    const dateFormatted = this.formattingService.formatDate(yesterday, DateFormats.Numeric);
+
+    await this.loadStatisticalData(DataSources.AdvancedTeamStats, dateFormatted, 30);
+    this.loadStatisticalData(DataSources.BoxScores, dateFormatted, 30);
+    return Promise.resolve();
+  }
+
+  private async loadStatisticalData(source: DataSources, scheduleDate: string, statRangeInDays: number): Promise<void> {
+    console.log(`Loading ${source}...0%`);
+    const latestValidDate = await this.determineLatestValidDate(source, scheduleDate);
+    let lastDate = this.formattingService.parseDate(latestValidDate);
+
+    for (let i = 0; i < statRangeInDays; i++) {
+      const dateString = this.formattingService.formatDate(lastDate, DateFormats.Numeric);
+      source === DataSources.AdvancedTeamStats ? await this.getAdvancedTeamStats(dateString) : await this.getEnhancedBoxScores(dateString);
+
+      const progress = this.formattingService.roundToNthDigit(((i + 1) / statRangeInDays) * 100, 0);
+      console.log(`Loading ${source}...${progress}%`);
+
+      lastDate = this.formattingService.addDaysToDate(lastDate, -1);
+    }
+    return Promise.resolve();
   }
 }

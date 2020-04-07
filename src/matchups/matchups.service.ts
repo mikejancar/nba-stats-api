@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { BoxScoresService } from '../box-scores/box-scores.service';
-import { DataService } from '../data/data.service';
-import { DateFormats, FormattingService } from '../formatting/formatting.service';
+import { FormattingService } from '../formatting/formatting.service';
 import { Matchup } from '../models/matchup';
 import { MatchupColumns } from '../models/matchup-columns.enum';
 import { MatchupResponse } from '../models/matchup-response';
@@ -16,12 +15,11 @@ export class MatchupsService {
   private matchupsData: Map<string, Matchup[]> = new Map();
 
   constructor(
-    private boxScoresService: BoxScoresService,
-    private dataService: DataService,
     private teamsService: TeamsService,
     private formattingService: FormattingService,
     private networkService: NetworkService,
-    private statsService: StatsService
+    private statsService: StatsService,
+    private boxScoresService: BoxScoresService
   ) {}
 
   async getMatchups(scheduleDate: string): Promise<Matchup[]> {
@@ -71,25 +69,12 @@ export class MatchupsService {
       await this.getMatchups(scheduleDate);
     }
     const matchup: Matchup = this.matchupsData.get(scheduleDate).find(matchup => matchup.gameId === gameId);
-
-    await this.loadStatisticalData(scheduleDate, statRangeInDays);
-
     const homeTeam: MatchupTeam = await this.teamsService.getAdvancedTeam(matchup.homeTeam.teamId, scheduleDate);
     const awayTeam: MatchupTeam = await this.teamsService.getAdvancedTeam(matchup.awayTeam.teamId, scheduleDate);
 
     this.statsService.computeStatGaps(homeTeam, awayTeam);
-    await this.statsService.computePredictors(homeTeam, awayTeam, scheduleDate, statRangeInDays);
+    await this.boxScoresService.getBoxScorePredictors(matchup, scheduleDate, statRangeInDays);
 
     return Promise.resolve({ gameId, homeTeam, awayTeam });
-  }
-
-  private async loadStatisticalData(scheduleDate: string, statRangeInDays: number): Promise<void> {
-    let lastDate = this.formattingService.parseDate(scheduleDate);
-    for (let i = 0; i < statRangeInDays; i++) {
-      const dateString = this.formattingService.formatDate(lastDate, DateFormats.Numeric);
-      await this.dataService.getAdvancedTeamStats(dateString);
-      lastDate = this.formattingService.addDaysToDate(lastDate, -1);
-    }
-    return Promise.resolve();
   }
 }

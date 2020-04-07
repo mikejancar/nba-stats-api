@@ -1,17 +1,21 @@
 import { Injectable } from '@nestjs/common';
 
-import { BoxScoresService } from '../box-scores/box-scores.service';
 import { FormattingService } from '../formatting/formatting.service';
 import { AdvancedTeamStats } from '../models/advanced-team-stats';
 import { BoxScore } from '../models/box-score';
-import { BoxScorePredictors } from '../models/box-score-predictors';
 import { BoxScoreSummary } from '../models/box-score-summary';
 import { MatchupTeam } from '../models/matchup-team';
 import { Team } from '../models/team';
 
+export enum DefaultComparisonRanges {
+  WinningPercentage = 0.05,
+  OffensiveEfficiency = 0.5,
+  DefensiveEfficiency = 0.5
+}
+
 @Injectable()
 export class StatsService {
-  constructor(private boxScoresService: BoxScoresService, private formattingService: FormattingService) {}
+  constructor(private formattingService: FormattingService) {}
 
   determineWinningCharacteristics(boxScore: BoxScore): void {
     const winningTeam = boxScore.homeTeam.wonGame ? boxScore.homeTeam : boxScore.awayTeam;
@@ -85,37 +89,15 @@ export class StatsService {
     };
   }
 
-  async computePredictors(homeTeam: MatchupTeam, awayTeam: MatchupTeam, scheduleDate: string, daysOfHistory: number): Promise<void> {
-    homeTeam.predictors = await this.createPredictors(homeTeam, scheduleDate, daysOfHistory);
-    awayTeam.predictors = await this.createPredictors(awayTeam, scheduleDate, daysOfHistory);
+  predictByWinningPercentage(team: MatchupTeam, comparisonRange: number): (box: BoxScore) => boolean {
+    return (box: BoxScore) => Math.abs(team.statGaps.winningPercentage - box.winningCharacteristics.winningPercentageGap) <= comparisonRange;
   }
 
-  private async createPredictors(team: MatchupTeam, scheduleDate: string, daysOfHistory: number): Promise<BoxScorePredictors> {
-    return Promise.resolve({
-      winningPercentage: await this.predictByWinningPercentage(team, scheduleDate, daysOfHistory),
-      offensiveEfficiency: await this.predictByOffensiveEfficiency(team, scheduleDate, daysOfHistory),
-      defensiveEfficiency: await this.predictByDefensiveEfficiency(team, scheduleDate, daysOfHistory)
-    });
+  predictByOffensiveEfficiency(team: MatchupTeam, comparisonRange: number): (box: BoxScore) => boolean {
+    return (box: BoxScore) => Math.abs(team.statGaps.offensiveEfficiency - box.winningCharacteristics.offensiveEfficiencyGap) <= comparisonRange;
   }
 
-  private async predictByWinningPercentage(team: MatchupTeam, scheduleDate: string, daysOfHistory: number): Promise<BoxScoreSummary> {
-    const comparisonRange = 0.05;
-    const winningPercentageFilter = (box: BoxScore) =>
-      Math.abs(team.statGaps.winningPercentage - box.winningCharacteristics.winningPercentageGap) <= comparisonRange;
-    return await this.boxScoresService.buildBoxScoreSummary(scheduleDate, daysOfHistory, true, winningPercentageFilter, comparisonRange);
-  }
-
-  private async predictByOffensiveEfficiency(team: MatchupTeam, scheduleDate: string, daysOfHistory: number): Promise<BoxScoreSummary> {
-    const comparisonRange = 0.5;
-    const offensiveEfficiencyFilter = (box: BoxScore) =>
-      Math.abs(team.statGaps.offensiveEfficiency - box.winningCharacteristics.offensiveEfficiencyGap) <= comparisonRange;
-    return await this.boxScoresService.buildBoxScoreSummary(scheduleDate, daysOfHistory, true, offensiveEfficiencyFilter, comparisonRange);
-  }
-
-  private async predictByDefensiveEfficiency(team: MatchupTeam, scheduleDate: string, daysOfHistory: number): Promise<BoxScoreSummary> {
-    const comparisonRange = 0.5;
-    const defensiveEfficiencyFilter = (box: BoxScore) =>
-      Math.abs(team.statGaps.defensiveEfficiency - box.winningCharacteristics.defensiveEfficiencyGap) <= comparisonRange;
-    return await this.boxScoresService.buildBoxScoreSummary(scheduleDate, daysOfHistory, true, defensiveEfficiencyFilter, comparisonRange);
+  predictByDefensiveEfficiency(team: MatchupTeam, comparisonRange: number): (box: BoxScore) => boolean {
+    return (box: BoxScore) => Math.abs(team.statGaps.defensiveEfficiency - box.winningCharacteristics.defensiveEfficiencyGap) <= comparisonRange;
   }
 }

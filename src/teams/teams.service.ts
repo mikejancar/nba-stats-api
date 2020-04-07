@@ -3,8 +3,9 @@ import { Injectable } from '@nestjs/common';
 import { DataService } from '../data/data.service';
 import { FormattingService } from '../formatting/formatting.service';
 import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-response';
+import { DataSources } from '../models/data-sources.enum';
 import { Team } from '../models/team';
-import { AvailableBuckets, NetworkService } from '../network/network.service';
+import { NetworkService } from '../network/network.service';
 
 @Injectable()
 export class TeamsService {
@@ -30,7 +31,7 @@ export class TeamsService {
     try {
       const response = await this.networkService.get(url);
       const fileName = this.formattingService.formatDateForFileName(upToDate);
-      await this.networkService.saveObjectToBucket(AvailableBuckets.AdvancedTeamStats, fileName, JSON.stringify(response));
+      await this.networkService.saveObjectToBucket(DataSources.AdvancedTeamStats, fileName, JSON.stringify(response));
 
       console.log(`Successfully retrieved advanced team stats up to ${upToDate}`);
       return response;
