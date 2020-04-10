@@ -2,9 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { DataService } from '../data/data.service';
 import { FormattingService } from '../formatting/formatting.service';
-import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-response';
-import { DataSources } from '../models/data-sources.enum';
-import { Team } from '../models/team';
+import { AdvancedTeamsStatsResponse, DataSources, Team } from '../models';
 import { NetworkService } from '../network/network.service';
 
 @Injectable()

@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 
-import { Matchup } from '../models/matchup';
+import { Matchup } from '../models';
 import { MatchupsService } from './matchups.service';
 
 @Controller('matchups')

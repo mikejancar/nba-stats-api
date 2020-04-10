@@ -2,10 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { BoxScoresService } from '../box-scores/box-scores.service';
 import { FormattingService } from '../formatting/formatting.service';
-import { Matchup } from '../models/matchup';
-import { MatchupColumns } from '../models/matchup-columns.enum';
-import { MatchupResponse } from '../models/matchup-response';
-import { MatchupTeam } from '../models/matchup-team';
+import { Matchup, MatchupColumns, MatchupResponse, MatchupTeam } from '../models';
 import { NetworkService } from '../network/network.service';
 import { StatsService } from '../stats/stats.service';
 import { TeamsService } from '../teams/teams.service';

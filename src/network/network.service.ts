@@ -4,7 +4,7 @@ import { HttpsProxyAgent } from 'https-proxy-agent';
 import fetch from 'node-fetch';
 
 import { nbaStatsApi } from '../keys/aws.json';
-import { DataSources } from '../models/data-sources.enum';
+import { DataSources } from '../models';
 
 @Injectable()
 export class NetworkService {

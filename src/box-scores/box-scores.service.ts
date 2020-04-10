@@ -2,13 +2,9 @@ import { Injectable } from '@nestjs/common';
 
 import { DataService } from '../data/data.service';
 import { DateFormats, FormattingService } from '../formatting/formatting.service';
-import { BoxScore } from '../models/box-score';
-import { BoxScorePredictors } from '../models/box-score-predictors';
-import { BoxScoreResponse } from '../models/box-score-response';
-import { BoxScoreSummary } from '../models/box-score-summary';
-import { DataSources } from '../models/data-sources.enum';
-import { Matchup } from '../models/matchup';
-import { MatchupTeam } from '../models/matchup-team';
+import {
+  BoxScore, BoxScorePredictors, BoxScoreResponse, BoxScoreSummary, DataSources, Matchup, MatchupTeam
+} from '../models';
 import { NetworkService } from '../network/network.service';
 import { DefaultComparisonRanges, StatsService } from '../stats/stats.service';
 

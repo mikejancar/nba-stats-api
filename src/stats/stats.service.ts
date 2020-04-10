@@ -1,11 +1,7 @@
 import { Injectable } from '@nestjs/common';
 
 import { FormattingService } from '../formatting/formatting.service';
-import { AdvancedTeamStats } from '../models/advanced-team-stats';
-import { BoxScore } from '../models/box-score';
-import { BoxScoreSummary } from '../models/box-score-summary';
-import { MatchupTeam } from '../models/matchup-team';
-import { Team } from '../models/team';
+import { AdvancedTeamStats, BoxScore, BoxScoreSummary, MatchupTeam, Team } from '../models';
 
 export enum DefaultComparisonRanges {
   WinningPercentage = 0.05,

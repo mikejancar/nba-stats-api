@@ -1,14 +1,10 @@
 import { Injectable } from '@nestjs/common';
 
 import { DateFormats, FormattingService } from '../formatting/formatting.service';
-import { AdvancedTeamStatsColumns } from '../models/advanced-team-stats-columns.enum';
-import { AdvancedTeamsStatsResponse } from '../models/advanced-team-stats-response';
-import { BoxScore } from '../models/box-score';
-import { BoxScoreColumns } from '../models/box-score-columns.enum';
-import { BoxScoreResponse } from '../models/box-score-response';
-import { BoxScoreTeam } from '../models/box-score-team';
-import { DataSources } from '../models/data-sources.enum';
-import { Team } from '../models/team';
+import {
+  AdvancedTeamsStatsResponse, AdvancedTeamStatsColumns, BoxScore, BoxScoreColumns, BoxScoreResponse,
+  BoxScoreTeam, DataSources, Team
+} from '../models';
 import { NetworkService } from '../network/network.service';
 import { StatsService } from '../stats/stats.service';
 import { teams as teamsJson } from './teams.json';

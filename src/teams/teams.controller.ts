@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
-import { Team } from 'src/models/team';
 
+import { Team } from '../models';
 import { TeamsService } from './teams.service';
 
 @Controller('teams')
