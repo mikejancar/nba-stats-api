@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { DateFormats, FormattingService } from '../formatting/formatting.service';
 import {
   AdvancedTeamsStatsResponse, AdvancedTeamStatsColumns, BoxScore, BoxScoreColumns, BoxScoreResponse,
-  BoxScoreTeam, DataSources, Team
+  BoxScoreTeam, DataSources, Matchup, MatchupColumns, MatchupResponse, MatchupTeam, Team
 } from '../models';
 import { NetworkService } from '../network/network.service';
 import { StatsService } from '../stats/stats.service';
@@ -13,6 +13,7 @@ import { teams as teamsJson } from './teams.json';
 export class DataService {
   private advancedTeamData: Map<string, Team[]> = new Map();
   private boxScoreData: Map<string, BoxScore[]> = new Map();
+  private matchupData: Map<string, Matchup[]> = new Map();
   private latestAdvancedDate = '';
   private latestBoxScoreDate = '';
 
@@ -20,30 +21,48 @@ export class DataService {
     this.preloadData();
   }
 
-  getTeam(teamId: number): Team {
-    const team: any = teamsJson.find(team => team.teamId === teamId.toString());
-    if (team) {
-      return {
-        teamId,
-        teamName: team.fullName,
-        abbreviation: team.tricode
-      };
+  async preloadData(): Promise<void> {
+    const yesterday = this.formattingService.addDaysToDate(new Date(), -1);
+    const dateFormatted = this.formattingService.formatDate(yesterday, DateFormats.Numeric);
+
+    await this.loadStatisticalData(DataSources.AdvancedTeamStats, dateFormatted, 30);
+    this.loadStatisticalData(DataSources.BoxScores, dateFormatted, 30);
+    return Promise.resolve();
+  }
+
+  private async loadStatisticalData(source: DataSources, scheduleDate: string, statRangeInDays: number): Promise<void> {
+    console.log(`Loading ${source}...0%`);
+    const latestValidDate = await this.determineLatestValidDate(source, scheduleDate);
+    let lastDate = this.formattingService.parseDate(latestValidDate);
+
+    for (let i = 0; i < statRangeInDays; i++) {
+      const dateString = this.formattingService.formatDate(lastDate, DateFormats.Numeric);
+      source === DataSources.AdvancedTeamStats ? await this.getAdvancedTeamStats(dateString) : await this.getEnhancedBoxScores(dateString);
+
+      const progress = this.formattingService.roundToNthDigit(((i + 1) / statRangeInDays) * 100, 0);
+      console.log(`Loading ${source}...${progress}%`);
+
+      lastDate = this.formattingService.addDaysToDate(lastDate, -1);
     }
-    throw new Error(`Invalid team ID specified: ${teamId}`);
+    return Promise.resolve();
   }
 
   async getAdvancedTeamStats(asOf?: string): Promise<Team[]> {
     const statDate = await this.determineLatestValidDate(DataSources.AdvancedTeamStats, asOf);
 
     if (!this.advancedTeamData.has(statDate)) {
-      await this.loadAdvancedTeamStatData(statDate);
+      const dateFormatted = this.formattingService.formatDateForFileName(statDate);
+      const teamStatsData: AdvancedTeamsStatsResponse = await this.getAdvancedTeamStatData(dateFormatted);
+
+      if (teamStatsData.errorMessage) {
+        return Promise.resolve([]);
+      }
+      await this.loadAdvancedTeamStatData(statDate, teamStatsData);
     }
     return Promise.resolve(this.advancedTeamData.get(statDate));
   }
 
-  private async loadAdvancedTeamStatData(asOf: string): Promise<void> {
-    const dateFormatted = this.formattingService.formatDateForFileName(asOf);
-    const teamStatsData: AdvancedTeamsStatsResponse = await this.getAdvancedTeamStatData(dateFormatted);
+  private async loadAdvancedTeamStatData(asOf: string, teamStatsData: AdvancedTeamsStatsResponse): Promise<void> {
     const teamList: any[][] = teamStatsData.resultSets[0].rowSet;
 
     const teams: Team[] = [];
@@ -71,24 +90,32 @@ export class DataService {
   }
 
   private async getAdvancedTeamStatData(dateFormatted: string): Promise<AdvancedTeamsStatsResponse> {
-    const teamStatsData = await this.networkService.getObjectFromBucket(DataSources.AdvancedTeamStats, dateFormatted);
-    const teamStatsResponse = JSON.parse(teamStatsData.Body.toString());
-    return Promise.resolve(teamStatsResponse);
+    try {
+      const teamStatsData = await this.networkService.getObjectFromBucket(DataSources.AdvancedTeamStats, dateFormatted);
+      const teamStatsResponse = JSON.parse(teamStatsData.Body.toString());
+      return Promise.resolve(teamStatsResponse);
+    } catch (error) {
+      return Promise.resolve({ resource: DataSources.AdvancedTeamStats, parameters: null, resultSets: [], errorMessage: error.message });
+    }
   }
 
   async getEnhancedBoxScores(datePlayed: string): Promise<BoxScore[]> {
     const statDate = await this.determineLatestValidDate(DataSources.BoxScores, datePlayed);
 
     if (!this.boxScoreData.has(statDate)) {
-      await this.loadBoxScoreData(statDate);
+      const dateFormatted = this.formattingService.formatDateForFileName(statDate);
+      const boxScoreData: BoxScoreResponse = await this.getBoxScoreData(dateFormatted);
+
+      if (boxScoreData.errorMessage) {
+        console.log(`No box score data found for ${datePlayed}`);
+        return Promise.resolve([]);
+      }
+      await this.loadBoxScoreData(statDate, boxScoreData);
     }
     return Promise.resolve(this.boxScoreData.get(statDate));
   }
 
-  private async loadBoxScoreData(datePlayed: string): Promise<void> {
-    const dateFormatted = this.formattingService.formatDateForFileName(datePlayed);
-    const boxScoreData: BoxScoreResponse = await this.getBoxScoreData(dateFormatted);
-
+  private async loadBoxScoreData(datePlayed: string, boxScoreData: BoxScoreResponse): Promise<void> {
     const boxScores: BoxScore[] = [];
 
     for (let i = 0; i < boxScoreData.resultSets[0].rowSet.length; i += 2) {
@@ -112,9 +139,13 @@ export class DataService {
   }
 
   private async getBoxScoreData(dateFormatted: string): Promise<BoxScoreResponse> {
-    const boxScoreData = await this.networkService.getObjectFromBucket(DataSources.BoxScores, dateFormatted);
-    const boxScoreResponse = JSON.parse(boxScoreData.Body.toString());
-    return Promise.resolve(boxScoreResponse);
+    try {
+      const boxScoreData = await this.networkService.getObjectFromBucket(DataSources.BoxScores, dateFormatted);
+      const boxScoreResponse = JSON.parse(boxScoreData.Body.toString());
+      return Promise.resolve(boxScoreResponse);
+    } catch (error) {
+      return Promise.resolve({ resource: DataSources.BoxScores, parameters: null, resultSets: [], errorMessage: error.message });
+    }
   }
 
   private createTeamFromBoxScore(row: any[]): BoxScoreTeam {
@@ -145,7 +176,7 @@ export class DataService {
     };
   }
 
-  private async determineLatestValidDate(source: DataSources, givenDate?: string): Promise<string> {
+  async determineLatestValidDate(source: DataSources, givenDate?: string): Promise<string> {
     let latestDate;
     if (source === DataSources.AdvancedTeamStats) {
       if (!this.latestAdvancedDate) {
@@ -163,29 +194,61 @@ export class DataService {
     return Promise.resolve(givenDateIsAvailable ? givenDate : latestDate);
   }
 
-  async preloadData(): Promise<void> {
-    const yesterday = this.formattingService.addDaysToDate(new Date(), -1);
-    const dateFormatted = this.formattingService.formatDate(yesterday, DateFormats.Numeric);
+  async getMatchups(scheduleDate: string): Promise<Matchup[]> {
+    if (!this.matchupData.has(scheduleDate)) {
+      const dateFormatted = this.formattingService.formatDateForFileName(scheduleDate);
+      const matchupsData: MatchupResponse = await this.getMatchupData(dateFormatted);
 
-    await this.loadStatisticalData(DataSources.AdvancedTeamStats, dateFormatted, 30);
-    this.loadStatisticalData(DataSources.BoxScores, dateFormatted, 30);
-    return Promise.resolve();
+      if (matchupsData.errorMessage) {
+        return Promise.resolve([]);
+      }
+
+      const matchups = await this.createMatchups(matchupsData);
+      this.matchupData.set(scheduleDate, matchups);
+    }
+    return Promise.resolve(this.matchupData.get(scheduleDate));
   }
 
-  private async loadStatisticalData(source: DataSources, scheduleDate: string, statRangeInDays: number): Promise<void> {
-    console.log(`Loading ${source}...0%`);
-    const latestValidDate = await this.determineLatestValidDate(source, scheduleDate);
-    let lastDate = this.formattingService.parseDate(latestValidDate);
-
-    for (let i = 0; i < statRangeInDays; i++) {
-      const dateString = this.formattingService.formatDate(lastDate, DateFormats.Numeric);
-      source === DataSources.AdvancedTeamStats ? await this.getAdvancedTeamStats(dateString) : await this.getEnhancedBoxScores(dateString);
-
-      const progress = this.formattingService.roundToNthDigit(((i + 1) / statRangeInDays) * 100, 0);
-      console.log(`Loading ${source}...${progress}%`);
-
-      lastDate = this.formattingService.addDaysToDate(lastDate, -1);
+  private async getMatchupData(scheduleDate: string): Promise<MatchupResponse> {
+    try {
+      const matchupsData = await this.networkService.getObjectFromBucket(DataSources.Matchups, scheduleDate);
+      const matchupResponse = JSON.parse(matchupsData.Body.toString());
+      return Promise.resolve(matchupResponse);
+    } catch (error) {
+      return Promise.resolve({ resource: DataSources.Matchups, parameters: null, resultSets: [], errorMessage: error.message });
     }
-    return Promise.resolve();
+  }
+
+  private async createMatchups(response: MatchupResponse): Promise<Matchup[]> {
+    const matchups: Matchup[] = [];
+    for (let i = 0; i < response.resultSets[0].rowSet.length; i++) {
+      const matchupData = response.resultSets[0].rowSet[i];
+      const matchup: Matchup = this.createMatchup(matchupData);
+      matchups.push(matchup);
+    }
+    return matchups;
+  }
+
+  private createMatchup(matchupData: any[]): Matchup {
+    const homeTeam: MatchupTeam = this.getTeam(matchupData[MatchupColumns.HOME_TEAM_ID]);
+    const awayTeam: MatchupTeam = this.getTeam(matchupData[MatchupColumns.VISITOR_TEAM_ID]);
+
+    return {
+      gameId: matchupData[MatchupColumns.GAME_ID],
+      homeTeam,
+      awayTeam
+    };
+  }
+
+  private getTeam(teamId: number): Team {
+    const team: any = teamsJson.find(team => team.teamId === teamId.toString());
+    if (team) {
+      return {
+        teamId,
+        teamName: team.fullName,
+        abbreviation: team.tricode
+      };
+    }
+    throw new Error(`Invalid team ID specified: ${teamId}`);
   }
 }

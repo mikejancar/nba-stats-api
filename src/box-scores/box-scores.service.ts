@@ -2,64 +2,15 @@ import { Injectable } from '@nestjs/common';
 
 import { DataService } from '../data/data.service';
 import { DateFormats, FormattingService } from '../formatting/formatting.service';
-import {
-  BoxScore, BoxScorePredictors, BoxScoreResponse, BoxScoreSummary, DataSources, Matchup, MatchupTeam
-} from '../models';
-import { NetworkService } from '../network/network.service';
+import { BoxScorePredictors, BoxScoreSummary, DataSources, Matchup, MatchupTeam } from '../models';
 import { DefaultComparisonRanges, StatsService } from '../stats/stats.service';
 
 @Injectable()
 export class BoxScoresService {
-  constructor(
-    private dataService: DataService,
-    private formattingService: FormattingService,
-    private networkService: NetworkService,
-    private statsService: StatsService
-  ) {}
+  constructor(private dataService: DataService, private formattingService: FormattingService, private statsService: StatsService) {}
 
-  async getBoxScoresOn(datePlayed: string): Promise<BoxScoreResponse> {
-    const dateFormatted = this.formattingService.formatDateForStatsCall(datePlayed);
-    const url = `https://stats.nba.com/stats/leaguegamelog?Counter=1000&DateFrom=${dateFormatted}&DateTo=${dateFormatted}&Direction=DESC&LeagueID=00&PlayerOrTeam=T&Season=2019-20&SeasonType=Regular+Season&Sorter=DATE`;
-
-    try {
-      const response = await this.networkService.get(url);
-      const fileName = this.formattingService.formatDateForFileName(datePlayed);
-      await this.networkService.saveObjectToBucket(DataSources.BoxScores, fileName, JSON.stringify(response));
-
-      console.log(`Successfully retrieved box scores from ${response.parameters.DateFrom}`);
-      return Promise.resolve(response);
-    } catch (error) {
-      console.error(`Error getting box scores for ${datePlayed}`, error);
-      throw error;
-    }
-  }
-
-  async getRangeOfBoxScores(fromDate: string, upToDate: string): Promise<any> {
-    try {
-      let fromNumber = parseInt(fromDate);
-      const toNumber = parseInt(upToDate);
-
-      for (fromNumber; fromNumber <= toNumber; fromNumber++) {
-        this.getBoxScoresOn(fromNumber.toString());
-        await new Promise(r => setTimeout(r, 1000));
-      }
-      return `Successfully retrieved box scores from ${fromDate} to ${upToDate}`;
-    } catch (error) {
-      console.log(error);
-      return error;
-    }
-  }
-
-  async buildBoxScoreSummary(
-    boxScoreSummary: BoxScoreSummary,
-    excludeBoxScores = true,
-    filter?: (box: BoxScore) => boolean,
-    comparisonRange?: number
-  ): Promise<BoxScoreSummary> {
-    const filterBy = filter || (() => true);
-    boxScoreSummary.boxScores = boxScoreSummary.boxScores.filter(filterBy);
-
-    this.statsService.summarizeWinningCharacteristics(boxScoreSummary);
+  async buildBoxScoreSummary(boxScoreSummary: BoxScoreSummary, excludeBoxScores = true, comparisonRange?: number): Promise<BoxScoreSummary> {
+    boxScoreSummary.winningCharacteristics = this.statsService.summarizeWinningCharacteristics(boxScoreSummary);
 
     if (excludeBoxScores) {
       boxScoreSummary.boxScores = [];
@@ -71,7 +22,8 @@ export class BoxScoresService {
   }
 
   async getRangeOfEnhancedBoxScores(endDate: string, daysOfHistory: number): Promise<BoxScoreSummary> {
-    const lastDate = this.formattingService.parseDate(endDate);
+    const latestAvailableDate = await this.dataService.determineLatestValidDate(DataSources.BoxScores, endDate);
+    const lastDate = this.formattingService.parseDate(latestAvailableDate);
     let firstDate = this.formattingService.addDaysToDate(lastDate, -daysOfHistory);
 
     const boxScoreSummary: BoxScoreSummary = {
@@ -97,14 +49,24 @@ export class BoxScoresService {
 
   private async createPredictors(team: MatchupTeam, scheduleDate: string, daysOfHistory: number): Promise<BoxScorePredictors> {
     const boxScoreSummary = await this.getRangeOfEnhancedBoxScores(scheduleDate, daysOfHistory);
-    const winningPctFilter = this.statsService.predictByWinningPercentage(team, DefaultComparisonRanges.WinningPercentage);
-    const offensiveEffFilter = this.statsService.predictByOffensiveEfficiency(team, DefaultComparisonRanges.OffensiveEfficiency);
-    const defensiveEffFilter = this.statsService.predictByDefensiveEfficiency(team, DefaultComparisonRanges.DefensiveEfficiency);
+
+    const winPctSummary = {
+      ...boxScoreSummary,
+      boxScores: boxScoreSummary.boxScores.filter(this.statsService.predictByWinningPercentage(team, DefaultComparisonRanges.WinningPercentage))
+    };
+    const offEffSummary = {
+      ...boxScoreSummary,
+      boxScores: boxScoreSummary.boxScores.filter(this.statsService.predictByOffensiveEfficiency(team, DefaultComparisonRanges.OffensiveEfficiency))
+    };
+    const defEffSummary = {
+      ...boxScoreSummary,
+      boxScores: boxScoreSummary.boxScores.filter(this.statsService.predictByDefensiveEfficiency(team, DefaultComparisonRanges.DefensiveEfficiency))
+    };
 
     return Promise.resolve({
-      winningPercentage: await this.buildBoxScoreSummary(boxScoreSummary, true, winningPctFilter),
-      offensiveEfficiency: await this.buildBoxScoreSummary(boxScoreSummary, true, offensiveEffFilter),
-      defensiveEfficiency: await this.buildBoxScoreSummary(boxScoreSummary, true, defensiveEffFilter)
+      winningPercentage: await this.buildBoxScoreSummary(winPctSummary, true),
+      offensiveEfficiency: await this.buildBoxScoreSummary(offEffSummary, true),
+      defensiveEfficiency: await this.buildBoxScoreSummary(defEffSummary, true)
     });
   }
 }

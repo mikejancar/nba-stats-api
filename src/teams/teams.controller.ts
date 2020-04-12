@@ -16,12 +16,4 @@ export class TeamsController {
   async getTeam(@Param('teamId') teamId: string, @Query('asOf') asOf?: string): Promise<Team> {
     return await this.teamsService.getAdvancedTeam(parseInt(teamId), asOf);
   }
-
-  @Get('advancedStats/:upToDate')
-  async getTeamSplits(@Param('upToDate') upToDate, @Query('fromDate') fromDate?): Promise<any> {
-    if (fromDate) {
-      return await this.teamsService.getRangeOfAdvancedTeamStats(fromDate, upToDate);
-    }
-    return this.teamsService.getAdvancedTeamStats(upToDate);
-  }
 }

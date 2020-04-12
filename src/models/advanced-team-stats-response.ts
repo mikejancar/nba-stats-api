@@ -5,4 +5,5 @@ export interface AdvancedTeamsStatsResponse {
   resource: string;
   parameters: AdvancedTeamStatsParameters;
   resultSets: ResultSet[];
+  errorMessage?: string;
 }

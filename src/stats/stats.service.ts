@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 
 import { FormattingService } from '../formatting/formatting.service';
-import { AdvancedTeamStats, BoxScore, BoxScoreSummary, MatchupTeam, Team } from '../models';
+import {
+  AdvancedTeamStats, BoxScore, BoxScoreSummary, MatchupTeam, Team, WinningCharacteristicSummary
+} from '../models';
 
 export enum DefaultComparisonRanges {
   WinningPercentage = 0.05,
@@ -38,9 +40,13 @@ export class StatsService {
     };
   }
 
-  summarizeWinningCharacteristics(boxScoreSummary: BoxScoreSummary): void {
+  summarizeWinningCharacteristics(boxScoreSummary: BoxScoreSummary): WinningCharacteristicSummary {
     const totalBoxScores = boxScoreSummary.boxScores.length;
-    boxScoreSummary.winningCharacteristics = {
+    if (totalBoxScores === 0) {
+      return { wasHomeTeam: 0, moreOffensivelyEfficient: 0, moreDefensivelyEfficient: 0, hadHigherWinningPercentage: 0, averagePointGap: 0 };
+    }
+
+    return {
       wasHomeTeam: this.formattingService.roundToNthDigit(
         boxScoreSummary.boxScores.filter((boxScore: BoxScore) => boxScore.winningCharacteristics.wasHomeTeam).length / totalBoxScores,
         3

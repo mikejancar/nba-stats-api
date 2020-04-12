@@ -5,4 +5,5 @@ export interface MatchupResponse {
   resource: string;
   parameters: MatchupParameters;
   resultSets: ResultSet[];
+  errorMessage?: string;
 }

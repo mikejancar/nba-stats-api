@@ -26,9 +26,6 @@
     "@nestjs/platform-express": "^6.10.14",
     "aws-sdk": "^2.648.0",
     "date-fns": "^2.9.0",
-    "https-proxy-agent": "^5.0.0",
-    "nba": "^4.13.0",
-    "node-fetch": "^2.6.0",
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.0",
     "rxjs": "^6.5.4"
