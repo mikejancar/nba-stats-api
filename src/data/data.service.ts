@@ -25,8 +25,8 @@ export class DataService {
     const yesterday = this.formattingService.addDaysToDate(new Date(), -1);
     const dateFormatted = this.formattingService.formatDate(yesterday, DateFormats.Numeric);
 
-    await this.loadStatisticalData(DataSources.AdvancedTeamStats, dateFormatted, 30);
-    this.loadStatisticalData(DataSources.BoxScores, dateFormatted, 30);
+    await this.loadStatisticalData(DataSources.AdvancedTeamStats, dateFormatted, 60);
+    await this.loadStatisticalData(DataSources.BoxScores, dateFormatted, 60);
     return Promise.resolve();
   }
 
@@ -34,15 +34,32 @@ export class DataService {
     console.log(`Loading ${source}...0%`);
     const latestValidDate = await this.determineLatestValidDate(source, scheduleDate);
     let lastDate = this.formattingService.parseDate(latestValidDate);
+    const maxDaysOfHistory = 180;
+    const dateBoundary = this.formattingService.addDaysToDate(lastDate, -maxDaysOfHistory);
 
-    for (let i = 0; i < statRangeInDays; i++) {
+    let datesLoaded = 0;
+
+    while (datesLoaded < statRangeInDays) {
       const dateString = this.formattingService.formatDate(lastDate, DateFormats.Numeric);
-      source === DataSources.AdvancedTeamStats ? await this.getAdvancedTeamStats(dateString) : await this.getEnhancedBoxScores(dateString);
+      let dataLoaded: any[] = [];
 
-      const progress = this.formattingService.roundToNthDigit(((i + 1) / statRangeInDays) * 100, 0);
-      console.log(`Loading ${source}...${progress}%`);
+      if (source === DataSources.AdvancedTeamStats) {
+        dataLoaded = await this.getAdvancedTeamStats(dateString);
+      } else {
+        dataLoaded = await this.getEnhancedBoxScores(dateString);
+      }
+
+      if (dataLoaded.length > 0) {
+        datesLoaded++;
+        const progress = this.formattingService.roundToNthDigit((datesLoaded / statRangeInDays) * 100, 0);
+        console.log(`Loading ${source}...${progress}%`);
+      }
 
       lastDate = this.formattingService.addDaysToDate(lastDate, -1);
+      if (lastDate < dateBoundary) {
+        console.log(`The data service only loads dates within ${maxDaysOfHistory} days of the input date requested`);
+        break;
+      }
     }
     return Promise.resolve();
   }
@@ -55,6 +72,7 @@ export class DataService {
       const teamStatsData: AdvancedTeamsStatsResponse = await this.getAdvancedTeamStatData(dateFormatted);
 
       if (teamStatsData.errorMessage) {
+        console.log(`No advanced team stat data found for ${asOf}`);
         return Promise.resolve([]);
       }
       await this.loadAdvancedTeamStatData(statDate, teamStatsData);
