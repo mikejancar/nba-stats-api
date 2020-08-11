@@ -1,12 +1,14 @@
-import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
+import { Controller, Get, NotFoundException, Param, Query, UseInterceptors } from '@nestjs/common';
 
 import { DataService } from '../data/data.service';
+import { LoggingInterceptor } from '../logging/logging.interceptor';
 import { Matchup } from '../models';
 import { MatchupsService } from './matchups.service';
 
+@UseInterceptors(LoggingInterceptor)
 @Controller('matchups')
 export class MatchupsController {
-  constructor(private dataService: DataService, private matchupsService: MatchupsService) {}
+  constructor(private dataService: DataService, private matchupsService: MatchupsService) { }
 
   @Get(':scheduleDate')
   async getMatchups(@Param('scheduleDate') scheduleDate: string): Promise<Matchup[]> {

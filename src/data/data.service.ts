@@ -24,19 +24,21 @@ export class DataService {
   async preloadData(): Promise<void> {
     const yesterday = this.formattingService.addDaysToDate(new Date(), -1);
     const dateFormatted = this.formattingService.formatDate(yesterday, DateFormats.Numeric);
+    const daysToPreload = 60;
 
-    await this.loadStatisticalData(DataSources.AdvancedTeamStats, dateFormatted, 60);
-    await this.loadStatisticalData(DataSources.BoxScores, dateFormatted, 60);
+    await this.loadStatisticalData(DataSources.AdvancedTeamStats, dateFormatted, daysToPreload);
+    await this.loadStatisticalData(DataSources.BoxScores, dateFormatted, daysToPreload);
+
     return Promise.resolve();
   }
 
   private async loadStatisticalData(source: DataSources, scheduleDate: string, statRangeInDays: number): Promise<void> {
-    console.log(`Loading ${source}...0%`);
     const latestValidDate = await this.determineLatestValidDate(source, scheduleDate);
     let lastDate = this.formattingService.parseDate(latestValidDate);
-    const maxDaysOfHistory = 180;
+    const maxDaysOfHistory = 365;
     const dateBoundary = this.formattingService.addDaysToDate(lastDate, -maxDaysOfHistory);
 
+    console.log(`Loading ${source}...0%`);
     let datesLoaded = 0;
 
     while (datesLoaded < statRangeInDays) {
