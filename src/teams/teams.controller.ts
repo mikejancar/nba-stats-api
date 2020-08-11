@@ -1,11 +1,13 @@
-import { Controller, Get, Param, Query } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseInterceptors } from '@nestjs/common';
 
+import { LoggingInterceptor } from '../logging/logging.interceptor';
 import { Team } from '../models';
 import { TeamsService } from './teams.service';
 
+@UseInterceptors(LoggingInterceptor)
 @Controller('teams')
 export class TeamsController {
-  constructor(private teamsService: TeamsService) {}
+  constructor(private teamsService: TeamsService) { }
 
   @Get()
   async getTeams(@Query('asOf') asOf?: string): Promise<Team[]> {
