@@ -24,7 +24,7 @@
     "@nestjs/common": "^6.10.14",
     "@nestjs/core": "^6.10.14",
     "@nestjs/platform-express": "^6.10.14",
-    "aws-sdk": "^2.648.0",
+    "aws-sdk": "^2.814.0",
     "date-fns": "^2.9.0",
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.0",
